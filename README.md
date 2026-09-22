@@ -19,8 +19,11 @@ Aplikasi kasir (point of sale) online multi-industri. Kelola produk, catat penju
 
 1. Buat project di [supabase.com](https://supabase.com).
 2. Buka **SQL Editor**, jalankan isi `supabase/schema.sql`.
-3. (Opsional) Di **Authentication > Providers > Email**, matikan "Confirm email" agar signup langsung bisa login saat pengembangan.
-4. Ambil `Project URL` dan `anon key` dari **Project Settings > API**.
+3. (Opsional, disarankan) Jalankan `supabase/seed-admin.sql` untuk membuat akun admin platform siap pakai:
+   - Email: `admin@posonline.app`
+   - Password: `admin12345` — **ganti setelah login pertama**
+4. (Opsional) Di **Authentication > Providers > Email**, matikan "Confirm email" agar signup langsung bisa login saat pengembangan.
+5. Ambil `Project URL` dan `anon key` dari **Project Settings > API**.
 
 ### 2. Environment
 
