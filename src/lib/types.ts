@@ -3,6 +3,7 @@ export type Business = {
   name: string;
   currency: string;
   tax_percent: number;
+  is_suspended: boolean;
   created_at: string;
 };
 

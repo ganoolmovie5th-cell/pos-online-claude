@@ -11,6 +11,7 @@ create table if not exists businesses (
   name text not null default 'Bisnis Saya',
   currency text not null default 'IDR',
   tax_percent numeric(5,2) not null default 0,
+  is_suspended boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -19,6 +20,7 @@ create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   business_id uuid not null references businesses(id) on delete cascade,
   full_name text,
+  is_platform_admin boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -83,6 +85,20 @@ as $$
   select business_id from profiles where id = auth.uid();
 $$;
 
+-- true kalau user saat ini super-admin platform
+create or replace function is_platform_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (select is_platform_admin from profiles where id = auth.uid()),
+    false
+  );
+$$;
+
 -- ---------- Auto-provision saat signup ----------
 -- Tiap user baru dapat business sendiri + profile.
 
@@ -120,35 +136,35 @@ alter table products    enable row level security;
 alter table sales       enable row level security;
 alter table sale_items  enable row level security;
 
--- businesses: hanya bisnis milik user
+-- businesses: bisnis milik user, atau semua kalau platform admin
 drop policy if exists biz_rw on businesses;
 create policy biz_rw on businesses
-  for all using (id = current_business_id())
-  with check (id = current_business_id());
+  for all using (id = current_business_id() or is_platform_admin())
+  with check (id = current_business_id() or is_platform_admin());
 
--- profiles: user lihat/ubah profilnya sendiri
+-- profiles: profil sendiri, atau semua kalau platform admin (untuk statistik)
 drop policy if exists profile_self on profiles;
 create policy profile_self on profiles
-  for all using (id = auth.uid())
+  for all using (id = auth.uid() or is_platform_admin())
   with check (id = auth.uid());
 
--- generic: tabel dengan business_id
+-- generic: tabel dengan business_id (admin lihat semua)
 drop policy if exists cat_rw on categories;
 create policy cat_rw on categories
-  for all using (business_id = current_business_id())
+  for all using (business_id = current_business_id() or is_platform_admin())
   with check (business_id = current_business_id());
 
 drop policy if exists prod_rw on products;
 create policy prod_rw on products
-  for all using (business_id = current_business_id())
+  for all using (business_id = current_business_id() or is_platform_admin())
   with check (business_id = current_business_id());
 
 drop policy if exists sales_rw on sales;
 create policy sales_rw on sales
-  for all using (business_id = current_business_id())
+  for all using (business_id = current_business_id() or is_platform_admin())
   with check (business_id = current_business_id());
 
 drop policy if exists sale_items_rw on sale_items;
 create policy sale_items_rw on sale_items
-  for all using (business_id = current_business_id())
+  for all using (business_id = current_business_id() or is_platform_admin())
   with check (business_id = current_business_id());
