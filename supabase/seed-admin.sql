@@ -15,6 +15,10 @@
 -- pgcrypto untuk hash password (biasanya sudah aktif di Supabase)
 create extension if not exists pgcrypto;
 
+-- Pastikan kolom admin ada (aman kalau schema.sql lama yang dijalankan)
+alter table businesses add column if not exists is_suspended boolean not null default false;
+alter table profiles   add column if not exists is_platform_admin boolean not null default false;
+
 do $$
 declare
   admin_email text := 'admin@posonline.app';
