@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 export default function SignupPage() {
-  const router = useRouter();
   const [businessName, setBusinessName] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -35,8 +33,7 @@ export default function SignupPage() {
     }
     // Kalau email confirmation aktif, session belum ada.
     if (data.session) {
-      router.push("/dashboard");
-      router.refresh();
+      window.location.assign("/dashboard");
     } else {
       setMsg("Akun dibuat. Cek email untuk verifikasi, lalu masuk.");
     }
