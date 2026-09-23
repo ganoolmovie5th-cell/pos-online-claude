@@ -9,9 +9,12 @@ export default function SignupPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const joining = inviteCode.trim().length > 0;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -23,7 +26,11 @@ export default function SignupPage() {
       email,
       password,
       options: {
-        data: { business_name: businessName, full_name: fullName },
+        data: {
+          business_name: businessName,
+          full_name: fullName,
+          invite_code: inviteCode.trim().toUpperCase() || undefined,
+        },
       },
     });
     setLoading(false);
@@ -51,10 +58,22 @@ export default function SignupPage() {
 
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
             <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">
+                Kode undangan <span className="font-normal text-slate-400">(kalau diundang staf)</span>
+              </label>
+              <input
+                type="text"
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm uppercase focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                placeholder="Kosongkan kalau bikin bisnis baru"
+              />
+            </div>
+            <div className={joining ? "hidden" : ""}>
               <label className="mb-1 block text-sm font-medium text-slate-700">Nama bisnis</label>
               <input
                 type="text"
-                required
+                required={!joining}
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"

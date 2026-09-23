@@ -12,7 +12,7 @@ export async function requireBusiness() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("business_id, is_platform_admin, businesses(*)")
+    .select("business_id, is_platform_admin, role, businesses(*)")
     .eq("id", user.id)
     .single();
 
@@ -23,8 +23,9 @@ export async function requireBusiness() {
   if (business.is_suspended) redirect("/suspended");
 
   const isAdmin = Boolean(profile?.is_platform_admin);
+  const role = (profile?.role as string) ?? "owner";
 
-  return { supabase, user, business, isAdmin };
+  return { supabase, user, business, isAdmin, role };
 }
 
 // Pastikan user adalah super-admin platform. Dipakai di route /admin.

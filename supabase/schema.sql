@@ -11,6 +11,9 @@ create table if not exists businesses (
   name text not null default 'Bisnis Saya',
   currency text not null default 'IDR',
   tax_percent numeric(5,2) not null default 0,
+  address text,
+  phone text,
+  receipt_footer text,
   is_suspended boolean not null default false,
   created_at timestamptz not null default now()
 );
@@ -20,6 +23,7 @@ create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   business_id uuid not null references businesses(id) on delete cascade,
   full_name text,
+  role text not null default 'owner',   -- owner | cashier
   is_platform_admin boolean not null default false,
   created_at timestamptz not null default now()
 );

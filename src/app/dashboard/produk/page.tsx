@@ -12,6 +12,7 @@ type FormState = {
   category_id: string;
   stock: string;
   track: boolean;
+  barcode: string;
 };
 
 const emptyForm: FormState = {
@@ -21,6 +22,7 @@ const emptyForm: FormState = {
   category_id: "",
   stock: "",
   track: false,
+  barcode: "",
 };
 
 export default function ProdukPage() {
@@ -60,6 +62,7 @@ export default function ProdukPage() {
       price,
       category_id: form.category_id || null,
       stock: form.track ? parseInt(form.stock, 10) || 0 : null,
+      barcode: form.barcode.trim() || null,
     };
     const res = form.id
       ? await supabase.from("products").update(payload).eq("id", form.id)
@@ -98,6 +101,7 @@ export default function ProdukPage() {
       category_id: p.category_id ?? "",
       stock: p.stock == null ? "" : String(p.stock),
       track: p.stock != null,
+      barcode: p.barcode ?? "",
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -147,6 +151,15 @@ export default function ProdukPage() {
                 </option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Barcode (opsional)</label>
+            <input
+              value={form.barcode}
+              onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              placeholder="Scan atau ketik kode"
+            />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Stok</label>
@@ -246,8 +259,20 @@ export default function ProdukPage() {
                   <td className="px-4 py-3 font-medium text-slate-800">{p.name}</td>
                   <td className="px-4 py-3 text-slate-500">{catName(p.category_id)}</td>
                   <td className="px-4 py-3 text-right">{rupiah(p.price)}</td>
-                  <td className="px-4 py-3 text-right text-slate-500">
-                    {p.stock == null ? "—" : p.stock}
+                  <td className="px-4 py-3 text-right">
+                    {p.stock == null ? (
+                      <span className="text-slate-400">—</span>
+                    ) : p.stock <= 0 ? (
+                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                        Habis
+                      </span>
+                    ) : p.stock <= p.low_stock_threshold ? (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                        {p.stock} (menipis)
+                      </span>
+                    ) : (
+                      <span className="text-slate-600">{p.stock}</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <button

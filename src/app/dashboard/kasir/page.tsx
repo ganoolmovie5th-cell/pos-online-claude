@@ -3,16 +3,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { rupiah } from "@/lib/format";
-import type { Business, CartLine, Product } from "@/lib/types";
+import type { Business, CartLine, Customer, Product } from "@/lib/types";
 
 export default function KasirPage() {
   const supabase = createClient();
   const [products, setProducts] = useState<Product[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [business, setBusiness] = useState<Business | null>(null);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [discount, setDiscount] = useState("");
   const [paid, setPaid] = useState("");
   const [method, setMethod] = useState("cash");
+  const [customerId, setCustomerId] = useState("");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -20,11 +22,13 @@ export default function KasirPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: prod }, { data: user }] = await Promise.all([
+    const [{ data: prod }, { data: cust }, { data: user }] = await Promise.all([
       supabase.from("products").select("*").eq("is_active", true).order("name"),
+      supabase.from("customers").select("*").order("name"),
       supabase.auth.getUser(),
     ]);
     setProducts((prod as Product[]) ?? []);
+    setCustomers((cust as Customer[]) ?? []);
     if (user.user) {
       const { data: profile } = await supabase
         .from("profiles")
@@ -41,9 +45,24 @@ export default function KasirPage() {
   }, [load]);
 
   const filtered = useMemo(
-    () => products.filter((p) => p.name.toLowerCase().includes(query.toLowerCase())),
+    () =>
+      products.filter(
+        (p) =>
+          p.name.toLowerCase().includes(query.toLowerCase()) ||
+          (p.barcode ?? "").includes(query)
+      ),
     [products, query]
   );
+
+  // Scan barcode: input persis match barcode -> auto tambah + reset
+  function onScanInput(val: string) {
+    setQuery(val);
+    const hit = products.find((p) => p.barcode && p.barcode === val.trim());
+    if (hit) {
+      addToCart(hit);
+      setQuery("");
+    }
+  }
 
   function addToCart(p: Product) {
     setCart((prev) => {
@@ -80,12 +99,27 @@ export default function KasirPage() {
       alert("Nominal bayar kurang dari total.");
       return;
     }
+    if (method === "debt" && !customerId) {
+      setDone("");
+      alert("Pilih pelanggan dulu untuk transaksi kasbon.");
+      return;
+    }
     setSaving(true);
     setDone("");
 
     const { data: userData } = await supabase.auth.getUser();
     const uid = userData.user?.id ?? null;
 
+    // Hubungkan ke shift aktif kalau ada
+    const { data: openShift } = await supabase
+      .from("shifts")
+      .select("id")
+      .is("closed_at", null)
+      .order("opened_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const isDebt = method === "debt";
     const { data: sale, error: saleErr } = await supabase
       .from("sales")
       .insert({
@@ -94,9 +128,12 @@ export default function KasirPage() {
         discount: disc,
         tax,
         total,
-        paid: method === "cash" ? paidNum : total,
+        paid: isDebt ? 0 : method === "cash" ? paidNum : total,
         change: method === "cash" ? Math.max(change, 0) : 0,
         payment_method: method,
+        shift_id: openShift?.id ?? null,
+        customer_id: customerId || null,
+        is_debt: isDebt,
       })
       .select()
       .single();
@@ -117,16 +154,39 @@ export default function KasirPage() {
     }));
     const { error: itemErr } = await supabase.from("sale_items").insert(items);
 
-    setSaving(false);
     if (itemErr) {
+      setSaving(false);
       alert("Transaksi tersimpan tapi item gagal: " + itemErr.message);
       return;
     }
 
+    // Kurangi stok (produk yang melacak stok saja)
+    await supabase.rpc("decrement_stock", {
+      items: cart.map((l) => ({ product_id: l.product_id, qty: l.qty })),
+    });
+
+    // Catat kasbon kalau metode utang
+    if (isDebt) {
+      await supabase.from("debts").insert({
+        customer_id: customerId,
+        sale_id: sale.id,
+        amount: total,
+        paid: 0,
+        status: "open",
+      });
+    }
+
+    setSaving(false);
     setCart([]);
     setDiscount("");
     setPaid("");
-    setDone(`Transaksi tersimpan. Kembalian ${rupiah(Math.max(change, 0))}.`);
+    setCustomerId("");
+    setDone(
+      isDebt
+        ? "Kasbon tercatat. Total utang " + rupiah(total) + "."
+        : `Transaksi tersimpan. Kembalian ${rupiah(Math.max(change, 0))}.`
+    );
+    load();
   }
 
   return (
@@ -136,8 +196,8 @@ export default function KasirPage() {
         <h1 className="text-2xl font-bold text-slate-900">Kasir</h1>
         <input
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Cari produk..."
+          onChange={(e) => onScanInput(e.target.value)}
+          placeholder="Cari produk atau scan barcode..."
           className="mt-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
         />
         {loading ? (
@@ -148,16 +208,26 @@ export default function KasirPage() {
           </p>
         ) : (
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {filtered.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => addToCart(p)}
-                className="rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-brand-400 hover:shadow-sm"
-              >
-                <p className="font-medium text-slate-800">{p.name}</p>
-                <p className="mt-1 text-sm text-brand-700">{rupiah(p.price)}</p>
-              </button>
-            ))}
+            {filtered.map((p) => {
+              const out = p.stock != null && p.stock <= 0;
+              const low = p.stock != null && p.stock > 0 && p.stock <= p.low_stock_threshold;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => addToCart(p)}
+                  disabled={out}
+                  className="rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-brand-400 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <p className="font-medium text-slate-800">{p.name}</p>
+                  <p className="mt-1 text-sm text-brand-700">{rupiah(p.price)}</p>
+                  {p.stock != null && (
+                    <p className={`mt-1 text-xs ${out ? "text-red-600" : low ? "text-amber-600" : "text-slate-400"}`}>
+                      {out ? "Stok habis" : low ? `Stok menipis: ${p.stock}` : `Stok: ${p.stock}`}
+                    </p>
+                  )}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -231,7 +301,20 @@ export default function KasirPage() {
             <option value="qris">QRIS</option>
             <option value="transfer">Transfer</option>
             <option value="ewallet">E-wallet</option>
+            <option value="debt">Kasbon (utang)</option>
           </select>
+          {(method === "debt" || customerId) && (
+            <select
+              value={customerId}
+              onChange={(e) => setCustomerId(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            >
+              <option value="">Pilih pelanggan...</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          )}
           {method === "cash" && (
             <div>
               <input

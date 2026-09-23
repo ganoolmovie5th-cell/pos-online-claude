@@ -6,13 +6,25 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const links = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/dashboard/kasir", label: "Kasir" },
-  { href: "/dashboard/produk", label: "Produk" },
-  { href: "/dashboard/transaksi", label: "Transaksi" },
+  { href: "/dashboard", label: "Dashboard", ownerOnly: false },
+  { href: "/dashboard/kasir", label: "Kasir", ownerOnly: false },
+  { href: "/dashboard/produk", label: "Produk", ownerOnly: false },
+  { href: "/dashboard/transaksi", label: "Transaksi", ownerOnly: false },
+  { href: "/dashboard/pelanggan", label: "Pelanggan", ownerOnly: false },
+  { href: "/dashboard/shift", label: "Shift", ownerOnly: false },
+  { href: "/dashboard/laporan", label: "Laporan", ownerOnly: true },
+  { href: "/dashboard/anggota", label: "Anggota", ownerOnly: true },
+  { href: "/dashboard/pengaturan", label: "Pengaturan", ownerOnly: true },
 ];
 
-export default function Sidebar({ businessName }: { businessName: string }) {
+export default function Sidebar({
+  businessName,
+  role,
+}: {
+  businessName: string;
+  role: string;
+}) {
+  const isOwner = role === "owner";
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -45,7 +57,7 @@ export default function Sidebar({ businessName }: { businessName: string }) {
           <p className="mt-1 truncate text-sm text-slate-500">{businessName}</p>
         </div>
         <nav className="flex flex-col gap-1 p-3">
-          {links.map((l) => {
+          {links.filter((l) => isOwner || !l.ownerOnly).map((l) => {
             const active =
               l.href === "/dashboard"
                 ? pathname === "/dashboard"
