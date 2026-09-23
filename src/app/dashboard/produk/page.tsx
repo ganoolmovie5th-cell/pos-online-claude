@@ -9,6 +9,7 @@ type FormState = {
   id: string | null;
   name: string;
   price: string;
+  cost: string;
   category_id: string;
   stock: string;
   track: boolean;
@@ -19,6 +20,7 @@ const emptyForm: FormState = {
   id: null,
   name: "",
   price: "",
+  cost: "",
   category_id: "",
   stock: "",
   track: false,
@@ -60,6 +62,7 @@ export default function ProdukPage() {
     const payload = {
       name: form.name.trim(),
       price,
+      cost_price: parseFloat(form.cost) || 0,
       category_id: form.category_id || null,
       stock: form.track ? parseInt(form.stock, 10) || 0 : null,
       barcode: form.barcode.trim() || null,
@@ -98,6 +101,7 @@ export default function ProdukPage() {
       id: p.id,
       name: p.name,
       price: String(p.price),
+      cost: p.cost_price ? String(p.cost_price) : "",
       category_id: p.category_id ?? "",
       stock: p.stock == null ? "" : String(p.stock),
       track: p.stock != null,
@@ -127,7 +131,7 @@ export default function ProdukPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Harga (Rp)</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Harga jual (Rp)</label>
             <input
               type="number"
               min="0"
@@ -135,6 +139,17 @@ export default function ProdukPage() {
               onChange={(e) => setForm({ ...form, price: e.target.value })}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
               placeholder="18000"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Harga modal (Rp)</label>
+            <input
+              type="number"
+              min="0"
+              value={form.cost}
+              onChange={(e) => setForm({ ...form, cost: e.target.value })}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              placeholder="12000"
             />
           </div>
           <div>

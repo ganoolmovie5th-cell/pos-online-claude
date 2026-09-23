@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { rupiah, tanggal } from "@/lib/format";
-import type { Customer, Debt } from "@/lib/types";
+import type { Customer, Debt, Sale } from "@/lib/types";
 
 export default function PelangganPage() {
   const supabase = createClient();
@@ -14,6 +14,7 @@ export default function PelangganPage() {
   const [phone, setPhone] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState<Record<string, string>>({});
+  const [purchases, setPurchases] = useState<Record<string, Sale[]>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -112,7 +113,19 @@ export default function PelangganPage() {
             return (
               <div key={c.id} className="rounded-xl border border-slate-200 bg-white">
                 <button
-                  onClick={() => setOpenId(isOpen ? null : c.id)}
+                  onClick={async () => {
+                    const nextOpen = isOpen ? null : c.id;
+                    setOpenId(nextOpen);
+                    if (nextOpen && !purchases[c.id]) {
+                      const { data } = await supabase
+                        .from("sales")
+                        .select("*")
+                        .eq("customer_id", c.id)
+                        .order("created_at", { ascending: false })
+                        .limit(20);
+                      setPurchases((prev) => ({ ...prev, [c.id]: (data as Sale[]) ?? [] }));
+                    }
+                  }}
                   className="flex w-full items-center justify-between px-5 py-4 text-left"
                 >
                   <div>
@@ -134,6 +147,11 @@ export default function PelangganPage() {
 
                 {isOpen && (
                   <div className="border-t border-slate-100 px-5 py-4">
+                    <p className="mb-3 text-sm text-slate-600">
+                      Saldo poin: <strong className="text-brand-700">{c.points}</strong>
+                    </p>
+
+                    <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Kasbon</h4>
                     {list.length === 0 ? (
                       <p className="text-sm text-slate-400">Belum ada kasbon.</p>
                     ) : (
@@ -172,6 +190,22 @@ export default function PelangganPage() {
                             </li>
                           );
                         })}
+                      </ul>
+                    )}
+
+                    <h4 className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-slate-500">Riwayat pembelian</h4>
+                    {!purchases[c.id] ? (
+                      <p className="text-sm text-slate-400">Memuat...</p>
+                    ) : purchases[c.id].length === 0 ? (
+                      <p className="text-sm text-slate-400">Belum ada pembelian.</p>
+                    ) : (
+                      <ul className="space-y-1 text-sm">
+                        {purchases[c.id].map((s) => (
+                          <li key={s.id} className="flex justify-between">
+                            <span className="text-slate-500">{tanggal(s.created_at)}</span>
+                            <span className="font-medium text-slate-800">{rupiah(s.total)}</span>
+                          </li>
+                        ))}
                       </ul>
                     )}
                   </div>

@@ -5,6 +5,14 @@ import { createClient } from "@/lib/supabase/client";
 import { rupiah } from "@/lib/format";
 import type { Sale, SaleItem } from "@/lib/types";
 
+type ItemJoin = SaleItem & {
+  products?: {
+    cost_price: number;
+    category_id: string | null;
+    categories?: { name: string } | null;
+  } | null;
+};
+
 function todayStr(offsetDays = 0) {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
@@ -16,7 +24,7 @@ export default function LaporanPage() {
   const [from, setFrom] = useState(todayStr(-6));
   const [to, setTo] = useState(todayStr(0));
   const [sales, setSales] = useState<Sale[]>([]);
-  const [items, setItems] = useState<(SaleItem & { created_at?: string })[]>([]);
+  const [items, setItems] = useState<ItemJoin[]>([]);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
@@ -37,9 +45,9 @@ export default function LaporanPage() {
       const ids = rows.map((r) => r.id);
       const { data: it } = await supabase
         .from("sale_items")
-        .select("*")
+        .select("*, products(cost_price, category_id, categories(name))")
         .in("sale_id", ids);
-      setItems((it as SaleItem[]) ?? []);
+      setItems((it as ItemJoin[]) ?? []);
     } else {
       setItems([]);
     }
@@ -70,6 +78,23 @@ export default function LaporanPage() {
     const m = new Map<string, number>();
     items.forEach((it) => m.set(it.name, (m.get(it.name) ?? 0) + Number(it.qty)));
     return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+  }, [items]);
+
+  // Laba kotor = penjualan item - (modal x qty)
+  const modal = items.reduce(
+    (s, it) => s + Number(it.products?.cost_price ?? 0) * Number(it.qty),
+    0
+  );
+  const penjualanItem = items.reduce((s, it) => s + Number(it.line_total), 0);
+  const laba = penjualanItem - modal;
+
+  const perKategori = useMemo(() => {
+    const m = new Map<string, number>();
+    items.forEach((it) => {
+      const cat = it.products?.categories?.name ?? "Tanpa kategori";
+      m.set(cat, (m.get(cat) ?? 0) + Number(it.line_total));
+    });
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
   }, [items]);
 
   function exportCsv() {
@@ -120,6 +145,24 @@ export default function LaporanPage() {
         <Stat label="Total omzet" value={rupiah(omzet)} />
         <Stat label="Jumlah transaksi" value={String(jumlah)} />
         <Stat label="Rata-rata / transaksi" value={rupiah(rata)} />
+        <Stat label="Modal (HPP)" value={rupiah(modal)} />
+        <Stat label="Laba kotor" value={rupiah(laba)} />
+      </div>
+
+      <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+        <h2 className="font-semibold text-slate-900">Omzet per kategori</h2>
+        {perKategori.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-400">Tidak ada data.</p>
+        ) : (
+          <ul className="mt-4 space-y-2 text-sm">
+            {perKategori.map(([cat, val]) => (
+              <li key={cat} className="flex items-center justify-between">
+                <span className="text-slate-600">{cat}</span>
+                <span className="font-medium text-slate-900">{rupiah(val)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">

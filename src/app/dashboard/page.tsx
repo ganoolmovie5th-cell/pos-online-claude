@@ -36,6 +36,16 @@ export default async function DashboardHome() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
 
+  // Stok kritis: produk yang melacak stok & stok <= ambang
+  const { data: prodRows } = await supabase
+    .from("products")
+    .select("id, name, stock, low_stock_threshold")
+    .eq("is_active", true)
+    .not("stock", "is", null);
+  const lowStock = ((prodRows as { id: string; name: string; stock: number; low_stock_threshold: number }[]) ?? [])
+    .filter((p) => p.stock <= p.low_stock_threshold)
+    .sort((a, b) => a.stock - b.stock);
+
   return (
     <div className="mx-auto max-w-5xl">
       <div className="flex items-start justify-between gap-4">
@@ -63,6 +73,25 @@ export default async function DashboardHome() {
           <p className="mt-2 text-3xl font-extrabold text-slate-900">{jumlah}</p>
         </div>
       </div>
+
+      {lowStock.length > 0 && (
+        <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-6">
+          <h2 className="font-semibold text-amber-800">⚠ Stok menipis ({lowStock.length})</h2>
+          <ul className="mt-3 space-y-1 text-sm">
+            {lowStock.slice(0, 8).map((p) => (
+              <li key={p.id} className="flex items-center justify-between">
+                <span className="text-slate-700">{p.name}</span>
+                <span className={`font-medium ${p.stock <= 0 ? "text-red-600" : "text-amber-700"}`}>
+                  {p.stock <= 0 ? "Habis" : `Sisa ${p.stock}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <Link href="/dashboard/restock" className="mt-3 inline-block text-sm font-medium text-brand-700 hover:underline">
+            Tambah stok →
+          </Link>
+        </div>
+      )}
 
       <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
         <h2 className="font-semibold text-slate-900">Produk terlaris (30 hari)</h2>

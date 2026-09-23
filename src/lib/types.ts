@@ -3,6 +3,9 @@ export type Business = {
   name: string;
   currency: string;
   tax_percent: number;
+  service_charge_percent: number;
+  points_per_amount: number;
+  point_value: number;
   address: string | null;
   phone: string | null;
   receipt_footer: string | null;
@@ -23,6 +26,7 @@ export type Product = {
   category_id: string | null;
   name: string;
   price: number;
+  cost_price: number;
   stock: number | null;
   barcode: string | null;
   low_stock_threshold: number;
@@ -46,6 +50,11 @@ export type Sale = {
   shift_id: string | null;
   customer_id: string | null;
   is_debt: boolean;
+  points_earned: number;
+  points_redeemed: number;
+  service_charge: number;
+  voucher_code: string | null;
+  outlet_id: string | null;
   created_at: string;
 };
 
@@ -76,6 +85,31 @@ export type Customer = {
   business_id: string;
   name: string;
   phone: string | null;
+  points: number;
+  created_at: string;
+};
+
+export type Supplier = {
+  id: string;
+  business_id: string;
+  name: string;
+  phone: string | null;
+  created_at: string;
+};
+
+export type Voucher = {
+  code: string;
+  business_id: string;
+  kind: string; // amount | percent
+  value: number;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type Outlet = {
+  id: string;
+  business_id: string;
+  name: string;
   created_at: string;
 };
 
@@ -104,4 +138,5 @@ export type CartLine = {
   name: string;
   price: number;
   qty: number;
+  discount: number; // diskon nominal per baris (total, bukan per unit)
 };

@@ -21,7 +21,10 @@ export function receiptText(
   lines.push(`Subtotal: ${rupiah(sale.subtotal)}`);
   if (sale.discount > 0) lines.push(`Diskon: -${rupiah(sale.discount)}`);
   if (sale.tax > 0) lines.push(`Pajak: ${rupiah(sale.tax)}`);
+  if (sale.service_charge > 0) lines.push(`Service: ${rupiah(sale.service_charge)}`);
   lines.push(`*Total: ${rupiah(sale.total)}*`);
+  if (sale.points_earned > 0) lines.push(`Poin didapat: +${sale.points_earned}`);
+  if (sale.points_redeemed > 0) lines.push(`Poin ditebus: -${sale.points_redeemed}`);
   if (sale.payment_method === "cash") {
     lines.push(`Bayar: ${rupiah(sale.paid)}`);
     lines.push(`Kembali: ${rupiah(sale.change)}`);

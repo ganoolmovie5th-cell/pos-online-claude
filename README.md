@@ -20,14 +20,24 @@ Aplikasi kasir (point of sale) online multi-industri. Kelola produk, catat penju
 - Shift kasir (buka/tutup kas, hitung selisih)
 - Pelanggan + kasbon (utang) dengan pembayaran cicilan
 - Pengaturan bisnis (nama, pajak, info struk)
-- PWA installable (offline shell)
+- Program loyalti (poin: dapat & tukar)
+- Harga modal + laporan laba kotor
+- Diskon persen/nominal + diskon per item
+- Voucher/kupon diskon
+- Service charge terpisah dari pajak
+- Stok masuk + supplier (restock)
+- Laporan omzet per kategori
+- Tahan (park) transaksi
+- Multi-outlet (pengelompokan dalam satu bisnis)
+- Antrean transaksi offline (kirim otomatis saat online)
+- PWA installable
 
 ## Setup
 
 ### 1. Supabase
 
 1. Buat project di [supabase.com](https://supabase.com).
-2. Buka **SQL Editor**, jalankan isi `supabase/schema.sql`, lalu `supabase/migration-v2.sql` (fitur lanjutan: stok, void, shift, pelanggan, kasbon, multi-user).
+2. Buka **SQL Editor**, jalankan berurutan: `supabase/schema.sql` → `supabase/migration-v2.sql` (stok, void, shift, pelanggan, kasbon, multi-user) → `supabase/migration-v3.sql` (loyalty, laba, voucher, outlet, service charge, restock).
 3. (Opsional, disarankan) Jalankan `supabase/seed-admin.sql` untuk membuat akun admin platform siap pakai:
    - Email: `admin@posonline.app`
    - Password: `admin12345` — **ganti setelah login pertama**

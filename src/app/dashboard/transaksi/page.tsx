@@ -207,9 +207,12 @@ export default function TransaksiPage() {
                 <Row label="Subtotal" val={rupiah(active.subtotal)} />
                 {active.discount > 0 && <Row label="Diskon" val={"-" + rupiah(active.discount)} />}
                 {active.tax > 0 && <Row label="Pajak" val={rupiah(active.tax)} />}
+                {active.service_charge > 0 && <Row label="Service" val={rupiah(active.service_charge)} />}
                 <div className="flex justify-between font-bold">
                   <span>Total</span><span>{rupiah(active.total)}</span>
                 </div>
+                {active.points_earned > 0 && <Row label="Poin didapat" val={"+" + active.points_earned} />}
+                {active.points_redeemed > 0 && <Row label="Poin ditebus" val={"-" + active.points_redeemed} />}
                 {active.payment_method === "cash" && (
                   <>
                     <Row label="Bayar" val={rupiah(active.paid)} />
