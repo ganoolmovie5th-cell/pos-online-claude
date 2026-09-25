@@ -171,6 +171,9 @@ export default function KasirPage() {
     return p.stock;
   };
 
+  // true kalau angka stok berasal dari entri outlet spesifik (bukan fallback global)
+  const isOutletEntry = (p: Product) => !!outletId && outletStock[p.id] !== undefined;
+
   const filtered = useMemo(
     () =>
       products.filter(
@@ -580,6 +583,7 @@ export default function KasirPage() {
                   {tracked && (
                     <p className={`mt-1 text-xs ${out ? "text-red-600" : low ? "text-amber-600" : "text-slate-400"}`}>
                       {out ? "Stok habis" : low ? `Stok menipis: ${st}` : `Stok: ${st}`}
+                      {outletId && !isOutletEntry(p) && <span className="text-slate-400"> (global)</span>}
                     </p>
                   )}
                 </button>
