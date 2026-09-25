@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-const BASE = "https://pos-online-claude.vercel.app";
+import { BASE } from "./config";
 const stamp = Date.now();
 const email = `qa${stamp}@gmail.com`;
 const password = "test123456";

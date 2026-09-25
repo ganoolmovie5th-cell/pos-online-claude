@@ -1,6 +1,6 @@
 import { test } from "@playwright/test";
 
-const BASE = "https://pos-online-claude.vercel.app";
+import { BASE } from "./config";
 
 test("probe protected route tanpa login", async ({ page }) => {
   const resp = await page.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" }).catch((e) => {

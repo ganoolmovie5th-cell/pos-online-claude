@@ -165,7 +165,9 @@ export default function KasirPage() {
   // Stok efektif produk: kalau outlet aktif, pakai stok outlet; else stok global
   const effStock = (p: Product): number | null => {
     if (p.stock == null) return null; // produk tak melacak stok -> tak dibatasi
-    if (outletId) return outletStock[p.id] ?? 0;
+    // Outlet aktif: pakai stok outlet kalau sudah pernah di-set,
+    // else fallback ke stok global (produk baru belum tentu punya entri outlet).
+    if (outletId) return outletStock[p.id] ?? p.stock;
     return p.stock;
   };
 

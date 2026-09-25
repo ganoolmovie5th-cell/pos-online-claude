@@ -1,6 +1,6 @@
 import { test, Page } from "@playwright/test";
 
-const BASE = "https://pos-online-claude.vercel.app";
+import { BASE } from "./config";
 
 async function login(page: Page) {
   await page.goto(`${BASE}/login`, { waitUntil: "networkidle" });

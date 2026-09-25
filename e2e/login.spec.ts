@@ -1,6 +1,6 @@
 import { test } from "@playwright/test";
 
-const BASE = "https://pos-online-claude.vercel.app";
+import { BASE } from "./config";
 
 test("login admin seed", async ({ page, context }) => {
   page.on("response", async (r) => {
