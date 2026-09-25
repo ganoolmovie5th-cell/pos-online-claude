@@ -30,14 +30,19 @@ export default function ShiftPage() {
     if (open) {
       const { data: sales } = await supabase
         .from("sales")
-        .select("total, payment_method, status")
+        .select("total, payment_method, payments, status")
         .eq("shift_id", open.id)
-        .eq("status", "completed")
-        .eq("payment_method", "cash");
-      const cashSales = ((sales as { total: number }[]) ?? []).reduce(
-        (s, r) => s + Number(r.total),
-        0
-      );
+        .eq("status", "completed");
+      type SaleRow = { total: number; payment_method: string; payments: { method: string; amount: number }[] | null };
+      const cashSales = ((sales as SaleRow[]) ?? []).reduce((sum, r) => {
+        if (r.payment_method === "cash") return sum + Number(r.total);
+        // split: ambil komponen tunai saja
+        if (r.payment_method === "split" && Array.isArray(r.payments)) {
+          const cash = r.payments.filter((p) => p.method === "cash").reduce((a, p) => a + Number(p.amount), 0);
+          return sum + cash;
+        }
+        return sum;
+      }, 0);
       setExpected(Number(open.opening_cash) + cashSales);
     }
     setLoading(false);

@@ -67,16 +67,13 @@ export default function TransaksiPage() {
   }
 
   async function voidSale(sale: Sale) {
-    if (!confirm("Batalkan (void) transaksi ini? Stok akan dikembalikan.")) return;
-    const { error } = await supabase
-      .from("sales")
-      .update({ status: "voided", voided_at: new Date().toISOString() })
-      .eq("id", sale.id);
+    if (!confirm("Batalkan (void) transaksi ini? Stok, poin, dan kasbon dikembalikan.")) return;
+    // void_sale menangani: stok (produk/varian/outlet), poin, kasbon, status
+    const { error } = await supabase.rpc("void_sale", { p_sale_id: sale.id });
     if (error) {
       alert("Gagal: " + error.message);
       return;
     }
-    await supabase.rpc("restore_stock", { p_sale_id: sale.id });
     setActive(null);
     load();
   }
