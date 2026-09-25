@@ -1,10 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
 import { rupiah } from "@/lib/format";
+
+const BarcodeScanner = dynamic(() => import("@/components/BarcodeScanner"), { ssr: false });
 import { enqueue, loadQueue, clearQueue } from "@/lib/offline";
-import type { Business, CartLine, Customer, Outlet, Product, Voucher } from "@/lib/types";
+import type { Bundle, BundleItem, Business, CartLine, Customer, Outlet, Product, Voucher } from "@/lib/types";
 
 const PARK_KEY = "pos_parked_carts";
 const OUTLET_KEY = "pos_active_outlet";
@@ -14,6 +17,8 @@ type Parked = { id: string; label: string; cart: CartLine[] };
 export default function KasirPage() {
   const supabase = createClient();
   const [products, setProducts] = useState<Product[]>([]);
+  const [bundles, setBundles] = useState<Bundle[]>([]);
+  const [bundleItems, setBundleItems] = useState<BundleItem[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [business, setBusiness] = useState<Business | null>(null);
@@ -22,12 +27,16 @@ export default function KasirPage() {
   const [discountMode, setDiscountMode] = useState<"amount" | "percent">("amount");
   const [paid, setPaid] = useState("");
   const [method, setMethod] = useState("cash");
+  const [splitCash, setSplitCash] = useState("");
+  const [splitNon, setSplitNon] = useState("");
+  const [splitNonMethod, setSplitNonMethod] = useState("qris");
   const [customerId, setCustomerId] = useState("");
   const [outletId, setOutletId] = useState("");
   const [voucherCode, setVoucherCode] = useState("");
   const [voucher, setVoucher] = useState<Voucher | null>(null);
   const [redeemPoints, setRedeemPoints] = useState("");
   const [query, setQuery] = useState("");
+  const [scanning, setScanning] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState("");
@@ -36,15 +45,19 @@ export default function KasirPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: prod }, { data: cust }, { data: outl }, { data: user }] = await Promise.all([
+    const [{ data: prod }, { data: cust }, { data: outl }, { data: bnd }, { data: bndItems }, { data: user }] = await Promise.all([
       supabase.from("products").select("*").eq("is_active", true).order("name"),
       supabase.from("customers").select("*").order("name"),
       supabase.from("outlets").select("*").order("name"),
+      supabase.from("bundles").select("*").eq("is_active", true).order("name"),
+      supabase.from("bundle_items").select("*"),
       supabase.auth.getUser(),
     ]);
     setProducts((prod as Product[]) ?? []);
     setCustomers((cust as Customer[]) ?? []);
     setOutlets((outl as Outlet[]) ?? []);
+    setBundles((bnd as Bundle[]) ?? []);
+    setBundleItems((bndItems as BundleItem[]) ?? []);
     if (user.user) {
       const { data: profile } = await supabase
         .from("profiles")
@@ -111,6 +124,17 @@ export default function KasirPage() {
     }
   }
 
+  function onCameraDetect(code: string) {
+    const hit = products.find((p) => p.barcode && p.barcode === code.trim());
+    if (hit) {
+      addToCart(hit);
+      setScanning(false);
+    }
+  }
+
+  // Key UI: product_id untuk produk, nama untuk bundle (product_id null)
+  const lineKey = (l: CartLine) => l.product_id ?? "bundle:" + l.name;
+
   function addToCart(p: Product) {
     setCart((prev) => {
       const found = prev.find((l) => l.product_id === p.id);
@@ -121,16 +145,30 @@ export default function KasirPage() {
     });
   }
 
-  function setQty(id: string, qty: number) {
+  function addBundle(b: Bundle) {
+    const components = bundleItems
+      .filter((i) => i.bundle_id === b.id && i.product_id)
+      .map((i) => ({ product_id: i.product_id as string, qty: i.qty }));
+    setCart((prev) => {
+      const key = "bundle:" + b.name;
+      const found = prev.find((l) => lineKey(l) === key);
+      if (found) {
+        return prev.map((l) => (lineKey(l) === key ? { ...l, qty: l.qty + 1 } : l));
+      }
+      return [...prev, { product_id: null, name: b.name, price: b.price, qty: 1, discount: 0, components }];
+    });
+  }
+
+  function setQty(key: string, qty: number) {
     setCart((prev) =>
       qty <= 0
-        ? prev.filter((l) => l.product_id !== id)
-        : prev.map((l) => (l.product_id === id ? { ...l, qty } : l))
+        ? prev.filter((l) => lineKey(l) !== key)
+        : prev.map((l) => (lineKey(l) === key ? { ...l, qty } : l))
     );
   }
 
-  function setLineDiscount(id: string, d: number) {
-    setCart((prev) => prev.map((l) => (l.product_id === id ? { ...l, discount: Math.max(d, 0) } : l)));
+  function setLineDiscount(key: string, d: number) {
+    setCart((prev) => prev.map((l) => (lineKey(l) === key ? { ...l, discount: Math.max(d, 0) } : l)));
   }
 
   // ---- Perhitungan ----
@@ -213,12 +251,22 @@ export default function KasirPage() {
     setVoucher(null);
     setVoucherCode("");
     setRedeemPoints("");
+    setSplitCash("");
+    setSplitNon("");
   }
+
+  const splitCashNum = parseFloat(splitCash) || 0;
+  const splitNonNum = parseFloat(splitNon) || 0;
+  const splitSum = splitCashNum + splitNonNum;
 
   async function checkout() {
     if (cart.length === 0) return;
     if (method === "cash" && paidNum < total) {
       alert("Nominal bayar kurang dari total.");
+      return;
+    }
+    if (method === "split" && splitSum < total) {
+      alert(`Total bayar (${rupiah(splitSum)}) kurang dari ${rupiah(total)}.`);
       return;
     }
     if (method === "debt" && !customerId) {
@@ -235,6 +283,13 @@ export default function KasirPage() {
       .order("opened_at", { ascending: false }).limit(1).maybeSingle();
 
     const isDebt = method === "debt";
+    const isSplit = method === "split";
+    const payments = isSplit
+      ? [
+          { method: "cash", amount: splitCashNum },
+          { method: splitNonMethod, amount: splitNonNum },
+        ].filter((p) => p.amount > 0)
+      : null;
     const salePayload = {
       cashier_id: uid,
       subtotal,
@@ -242,9 +297,10 @@ export default function KasirPage() {
       tax,
       service_charge: serviceCharge,
       total,
-      paid: isDebt ? 0 : method === "cash" ? paidNum : total,
-      change: method === "cash" ? Math.max(change, 0) : 0,
+      paid: isDebt ? 0 : method === "cash" ? paidNum : isSplit ? splitSum : total,
+      change: method === "cash" ? Math.max(change, 0) : isSplit ? Math.max(splitSum - total, 0) : 0,
       payment_method: method,
+      payments,
       shift_id: openShift?.id ?? null,
       customer_id: customerId || null,
       is_debt: isDebt,
@@ -260,7 +316,15 @@ export default function KasirPage() {
       qty: l.qty,
       line_total: lineTotal(l),
     }));
-    const decrement = cart.map((l) => ({ product_id: l.product_id, qty: l.qty }));
+    // Kurangi stok: produk biasa + komponen tiap bundle (qty komponen x qty paket)
+    const decrement: { product_id: string; qty: number }[] = [];
+    cart.forEach((l) => {
+      if (l.product_id) {
+        decrement.push({ product_id: l.product_id, qty: l.qty });
+      } else if (l.components) {
+        l.components.forEach((c) => decrement.push({ product_id: c.product_id, qty: c.qty * l.qty }));
+      }
+    });
 
     const { data: sale, error: saleErr } = await supabase
       .from("sales").insert(salePayload).select().single();
@@ -329,12 +393,20 @@ export default function KasirPage() {
             {pendingSync} transaksi menunggu sinkronisasi (offline).
           </p>
         )}
-        <input
-          value={query}
-          onChange={(e) => onScanInput(e.target.value)}
-          placeholder="Cari produk atau scan barcode..."
-          className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-        />
+        <div className="mt-3 flex gap-2">
+          <input
+            value={query}
+            onChange={(e) => onScanInput(e.target.value)}
+            placeholder="Cari produk atau scan barcode..."
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          />
+          <button onClick={() => setScanning(true)}
+            className="shrink-0 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+            title="Scan pakai kamera">
+            📷 Scan
+          </button>
+        </div>
+        {scanning && <BarcodeScanner onDetected={onCameraDetect} onClose={() => setScanning(false)} />}
 
         {/* Transaksi tertahan */}
         {parked.length > 0 && (
@@ -374,6 +446,23 @@ export default function KasirPage() {
             })}
           </div>
         )}
+
+        {/* Paket / bundle */}
+        {bundles.length > 0 && (
+          <>
+            <h2 className="mt-6 text-sm font-semibold text-slate-500">Paket</h2>
+            <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {bundles.map((b) => (
+                <button key={b.id} onClick={() => addBundle(b)}
+                  className="rounded-xl border border-brand-200 bg-brand-50 p-4 text-left hover:border-brand-400 hover:shadow-sm">
+                  <p className="font-medium text-slate-800">{b.name}</p>
+                  <p className="mt-1 text-sm text-brand-700">{rupiah(b.price)}</p>
+                  <p className="mt-1 text-xs text-brand-600">Paket</p>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Keranjang */}
@@ -390,26 +479,32 @@ export default function KasirPage() {
           <p className="mt-4 text-sm text-slate-400">Belum ada item.</p>
         ) : (
           <ul className="mt-4 space-y-3">
-            {cart.map((l) => (
-              <li key={l.product_id} className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-slate-800">{l.name}</p>
-                    <p className="text-xs text-slate-500">{rupiah(l.price)}</p>
+            {cart.map((l) => {
+              const key = lineKey(l);
+              return (
+                <li key={key} className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-slate-800">
+                        {l.name}
+                        {l.product_id === null && <span className="ml-1 text-xs text-brand-600">(paket)</span>}
+                      </p>
+                      <p className="text-xs text-slate-500">{rupiah(l.price)}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => setQty(key, l.qty - 1)} className="h-7 w-7 rounded border border-slate-300 text-slate-600">−</button>
+                      <span className="w-7 text-center text-sm">{l.qty}</span>
+                      <button onClick={() => setQty(key, l.qty + 1)} className="h-7 w-7 rounded border border-slate-300 text-slate-600">+</button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => setQty(l.product_id, l.qty - 1)} className="h-7 w-7 rounded border border-slate-300 text-slate-600">−</button>
-                    <span className="w-7 text-center text-sm">{l.qty}</span>
-                    <button onClick={() => setQty(l.product_id, l.qty + 1)} className="h-7 w-7 rounded border border-slate-300 text-slate-600">+</button>
+                  <div className="flex items-center gap-2 pl-1">
+                    <span className="text-xs text-slate-400">Diskon item</span>
+                    <input type="number" min="0" value={l.discount || ""} onChange={(e) => setLineDiscount(key, parseFloat(e.target.value) || 0)}
+                      className="w-24 rounded border border-slate-200 px-2 py-0.5 text-right text-xs" placeholder="0" />
                   </div>
-                </div>
-                <div className="flex items-center gap-2 pl-1">
-                  <span className="text-xs text-slate-400">Diskon item</span>
-                  <input type="number" min="0" value={l.discount || ""} onChange={(e) => setLineDiscount(l.product_id, parseFloat(e.target.value) || 0)}
-                    className="w-24 rounded border border-slate-200 px-2 py-0.5 text-right text-xs" placeholder="0" />
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
 
@@ -472,8 +567,32 @@ export default function KasirPage() {
             <option value="qris">QRIS</option>
             <option value="transfer">Transfer</option>
             <option value="ewallet">E-wallet</option>
+            <option value="split">Bayar campuran (split)</option>
             <option value="debt">Kasbon (utang)</option>
           </select>
+
+          {method === "split" && (
+            <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+              <div className="flex items-center gap-2">
+                <span className="w-16 text-xs text-slate-500">Tunai</span>
+                <input type="number" min="0" value={splitCash} onChange={(e) => setSplitCash(e.target.value)}
+                  className="w-full rounded border border-slate-300 px-2 py-1 text-sm text-right" placeholder="0" />
+              </div>
+              <div className="flex items-center gap-2">
+                <select value={splitNonMethod} onChange={(e) => setSplitNonMethod(e.target.value)}
+                  className="w-16 rounded border border-slate-300 px-1 py-1 text-xs">
+                  <option value="qris">QRIS</option>
+                  <option value="transfer">Transfer</option>
+                  <option value="ewallet">E-wallet</option>
+                </select>
+                <input type="number" min="0" value={splitNon} onChange={(e) => setSplitNon(e.target.value)}
+                  className="w-full rounded border border-slate-300 px-2 py-1 text-sm text-right" placeholder="0" />
+              </div>
+              <p className={`text-right text-xs ${splitSum >= total ? "text-green-600" : "text-amber-600"}`}>
+                Terbayar {rupiah(splitSum)} / {rupiah(total)}
+              </p>
+            </div>
+          )}
 
           <select value={customerId} onChange={(e) => setCustomerId(e.target.value)}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">

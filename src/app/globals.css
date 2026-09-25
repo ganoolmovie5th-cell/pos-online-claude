@@ -14,13 +14,20 @@ body {
   body { @apply bg-white; }
   /* Sembunyikan semua, tampilkan hanya area struk */
   body * { visibility: hidden; }
-  #receipt, #receipt * { visibility: visible; }
+  #receipt, #receipt *,
+  #labels, #labels * { visibility: visible; }
   #receipt {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
     padding: 0;
+  }
+  #labels {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
   }
   .no-print { display: none !important; }
   .receipt-modal { position: static !important; background: none !important; padding: 0 !important; }

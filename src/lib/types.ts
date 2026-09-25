@@ -55,7 +55,37 @@ export type Sale = {
   service_charge: number;
   voucher_code: string | null;
   outlet_id: string | null;
+  payments: PaymentPart[] | null;
   created_at: string;
+};
+
+export type PaymentPart = { method: string; amount: number };
+
+export type Expense = {
+  id: string;
+  business_id: string;
+  category: string;
+  amount: number;
+  note: string | null;
+  spent_at: string;
+  created_at: string;
+};
+
+export type Bundle = {
+  id: string;
+  business_id: string;
+  name: string;
+  price: number;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type BundleItem = {
+  id: string;
+  business_id: string;
+  bundle_id: string;
+  product_id: string | null;
+  qty: number;
 };
 
 export type SaleItem = {
@@ -134,9 +164,10 @@ export type Profile = {
 };
 
 export type CartLine = {
-  product_id: string;
+  product_id: string | null;       // null untuk baris paket/bundle
   name: string;
   price: number;
   qty: number;
-  discount: number; // diskon nominal per baris (total, bukan per unit)
+  discount: number;                // diskon nominal per baris (total, bukan per unit)
+  components?: { product_id: string; qty: number }[]; // isi bundle (untuk kurangi stok)
 };

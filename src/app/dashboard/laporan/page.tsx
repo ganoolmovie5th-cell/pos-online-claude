@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { rupiah } from "@/lib/format";
-import type { Sale, SaleItem } from "@/lib/types";
+import type { Expense, Sale, SaleItem } from "@/lib/types";
 
 type ItemJoin = SaleItem & {
   products?: {
@@ -25,6 +25,7 @@ export default function LaporanPage() {
   const [to, setTo] = useState(todayStr(0));
   const [sales, setSales] = useState<Sale[]>([]);
   const [items, setItems] = useState<ItemJoin[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
@@ -40,6 +41,13 @@ export default function LaporanPage() {
       .order("created_at", { ascending: false });
     const rows = (s as Sale[]) ?? [];
     setSales(rows);
+
+    const { data: exp } = await supabase
+      .from("expenses")
+      .select("*")
+      .gte("spent_at", from)
+      .lte("spent_at", to);
+    setExpenses((exp as Expense[]) ?? []);
 
     if (rows.length) {
       const ids = rows.map((r) => r.id);
@@ -87,6 +95,8 @@ export default function LaporanPage() {
   );
   const penjualanItem = items.reduce((s, it) => s + Number(it.line_total), 0);
   const laba = penjualanItem - modal;
+  const totalBiaya = expenses.reduce((s, e) => s + Number(e.amount), 0);
+  const labaBersih = laba - totalBiaya;
 
   const perKategori = useMemo(() => {
     const m = new Map<string, number>();
@@ -145,8 +155,30 @@ export default function LaporanPage() {
         <Stat label="Total omzet" value={rupiah(omzet)} />
         <Stat label="Jumlah transaksi" value={String(jumlah)} />
         <Stat label="Rata-rata / transaksi" value={rupiah(rata)} />
-        <Stat label="Modal (HPP)" value={rupiah(modal)} />
-        <Stat label="Laba kotor" value={rupiah(laba)} />
+      </div>
+
+      {/* Grafik omzet per hari (SVG murni) */}
+      <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+        <h2 className="font-semibold text-slate-900">Grafik omzet per hari</h2>
+        <BarChart data={[...perHari].reverse()} />
+      </div>
+
+      {/* Laba-rugi */}
+      <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+        <h2 className="font-semibold text-slate-900">Laba-rugi</h2>
+        <div className="mt-4 space-y-2 text-sm">
+          <LR label="Penjualan (omzet item)" val={rupiah(penjualanItem)} />
+          <LR label="Modal (HPP)" val={"- " + rupiah(modal)} />
+          <div className="flex justify-between border-t border-slate-100 pt-2 font-medium">
+            <span className="text-slate-700">Laba kotor</span>
+            <span>{rupiah(laba)}</span>
+          </div>
+          <LR label="Pengeluaran operasional" val={"- " + rupiah(totalBiaya)} />
+          <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-bold">
+            <span>Laba bersih</span>
+            <span className={labaBersih < 0 ? "text-red-600" : "text-green-600"}>{rupiah(labaBersih)}</span>
+          </div>
+        </div>
       </div>
 
       <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
@@ -215,5 +247,42 @@ function Stat({ label, value }: { label: string; value: string }) {
       <p className="text-sm text-slate-500">{label}</p>
       <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p>
     </div>
+  );
+}
+
+function LR({ label, val }: { label: string; val: string }) {
+  return (
+    <div className="flex justify-between text-slate-600">
+      <span>{label}</span>
+      <span>{val}</span>
+    </div>
+  );
+}
+
+// Bar chart SVG murni, tanpa library.
+function BarChart({ data }: { data: [string, { omzet: number; count: number }][] }) {
+  if (data.length === 0) return <p className="mt-4 text-sm text-slate-400">Tidak ada data.</p>;
+  const max = Math.max(...data.map((d) => d[1].omzet), 1);
+  const barW = 100 / data.length;
+  return (
+    <svg viewBox="0 0 100 40" className="mt-4 h-40 w-full" preserveAspectRatio="none">
+      {data.map(([day, v], i) => {
+        const h = (v.omzet / max) * 36;
+        return (
+          <g key={day}>
+            <rect
+              x={i * barW + barW * 0.15}
+              y={38 - h}
+              width={barW * 0.7}
+              height={Math.max(h, 0.5)}
+              className="fill-brand-500"
+              rx="0.5"
+            >
+              <title>{`${day}: ${v.omzet.toLocaleString("id-ID")}`}</title>
+            </rect>
+          </g>
+        );
+      })}
+    </svg>
   );
 }
