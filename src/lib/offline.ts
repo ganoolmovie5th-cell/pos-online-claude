@@ -9,6 +9,7 @@ export type QueuedSale = {
   sale: Record<string, unknown>;
   items: Record<string, unknown>[];
   decrement: { product_id: string; qty: number }[];
+  variantDecrement?: { variant_id: string; qty: number }[];
 };
 
 export function loadQueue(): QueuedSale[] {

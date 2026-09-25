@@ -5,7 +5,9 @@ import { createClient } from "@/lib/supabase/client";
 import { rupiah } from "@/lib/format";
 import type { Business, Product, Table, TableSession } from "@/lib/types";
 
-type SItem = { product_id: string | null; name: string; price: number; qty: number };
+type SItem = { product_id: string | null; name: string; price: number; cost?: number; qty: number };
+
+const OUTLET_KEY = "pos_active_outlet";
 
 export default function MejaPage() {
   const supabase = createClient();
@@ -76,7 +78,7 @@ export default function MejaPage() {
     const next = [...items];
     const found = next.find((i) => i.product_id === p.id);
     if (found) found.qty += 1;
-    else next.push({ product_id: p.id, name: p.name, price: p.price, qty: 1 });
+    else next.push({ product_id: p.id, name: p.name, price: p.price, cost: p.cost_price ?? 0, qty: 1 });
     saveItems(next);
   }
 
@@ -98,11 +100,13 @@ export default function MejaPage() {
     const sc = Math.round((subtotal * scPercent) / 100);
     const total = subtotal + tax + sc;
 
+    const oid = (() => { try { return localStorage.getItem(OUTLET_KEY) || ""; } catch { return ""; } })();
     const { data: sale, error } = await supabase.from("sales").insert({
       cashier_id: userData.user?.id ?? null,
       subtotal, discount: 0, tax, service_charge: sc, total,
       paid: total, change: 0, payment_method: "cash",
       table_id: activeTable?.id ?? null,
+      outlet_id: oid || null,
     }).select().single();
 
     if (error || !sale) {
@@ -113,12 +117,17 @@ export default function MejaPage() {
     await supabase.from("sale_items").insert(
       items.map((it) => ({
         sale_id: sale.id, product_id: it.product_id, name: it.name,
-        price: it.price, qty: it.qty, line_total: it.price * it.qty,
+        price: it.price, cost_price: it.cost ?? 0, qty: it.qty, line_total: it.price * it.qty,
       }))
     );
-    await supabase.rpc("decrement_stock", {
-      items: items.filter((i) => i.product_id).map((i) => ({ product_id: i.product_id, qty: i.qty })),
-    });
+    const dec = items.filter((i) => i.product_id).map((i) => ({ product_id: i.product_id as string, qty: i.qty }));
+    if (dec.length > 0) {
+      if (oid) {
+        await supabase.rpc("decrement_outlet_stock", { p_outlet: oid, items: dec });
+      } else {
+        await supabase.rpc("decrement_stock", { items: dec });
+      }
+    }
     await supabase.from("table_sessions").update({
       status: "closed", sale_id: sale.id, closed_at: new Date().toISOString(),
     }).eq("id", activeSession.id);

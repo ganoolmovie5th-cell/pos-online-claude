@@ -7,7 +7,6 @@ import type { Expense, Outlet, Sale, SaleItem } from "@/lib/types";
 
 type ItemJoin = SaleItem & {
   products?: {
-    cost_price: number;
     category_id: string | null;
     categories?: { name: string } | null;
   } | null;
@@ -60,7 +59,7 @@ export default function LaporanPage() {
       const ids = rows.map((r) => r.id);
       const { data: it } = await supabase
         .from("sale_items")
-        .select("*, products(cost_price, category_id, categories(name))")
+        .select("*, products(category_id, categories(name))")
         .in("sale_id", ids);
       setItems((it as ItemJoin[]) ?? []);
     } else {
@@ -97,7 +96,7 @@ export default function LaporanPage() {
 
   // Laba kotor = penjualan item - (modal x qty)
   const modal = items.reduce(
-    (s, it) => s + Number(it.products?.cost_price ?? 0) * Number(it.qty),
+    (s, it) => s + Number(it.cost_price ?? 0) * Number(it.qty),
     0
   );
   const penjualanItem = items.reduce((s, it) => s + Number(it.line_total), 0);

@@ -98,6 +98,7 @@ export type SaleItem = {
   variant_name: string | null;
   name: string;
   price: number;
+  cost_price: number;
   qty: number;
   line_total: number;
 };
@@ -208,7 +209,8 @@ export type CartLine = {
   variant_name?: string | null;
   name: string;
   price: number;
+  cost: number;                    // harga modal snapshot per unit
   qty: number;
   discount: number;                // diskon nominal per baris (total, bukan per unit)
-  components?: { product_id: string; qty: number }[]; // isi bundle (untuk kurangi stok)
+  components?: { product_id: string; qty: number; cost: number }[]; // isi bundle
 };
