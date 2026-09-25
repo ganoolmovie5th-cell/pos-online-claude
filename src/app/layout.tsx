@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
+import { GoogleTagManager } from "@next/third-parties/google";
 import RegisterSW from "@/components/RegisterSW";
 import "./globals.css";
 
@@ -16,6 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id">
+      <GoogleTagManager gtmId="GTM-NK4MLR6T" />
       <body>
         {children}
         <RegisterSW />
