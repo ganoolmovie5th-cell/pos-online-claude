@@ -172,3 +172,10 @@ drop policy if exists sale_items_rw on sale_items;
 create policy sale_items_rw on sale_items
   for all using (business_id = current_business_id() or is_platform_admin())
   with check (business_id = current_business_id());
+
+-- ---------- Default business_id (agar insert app tak perlu kirim business_id) ----------
+-- current_business_id() otomatis mengisi berdasarkan user yang login.
+alter table categories alter column business_id set default current_business_id();
+alter table products   alter column business_id set default current_business_id();
+alter table sales      alter column business_id set default current_business_id();
+alter table sale_items alter column business_id set default current_business_id();
