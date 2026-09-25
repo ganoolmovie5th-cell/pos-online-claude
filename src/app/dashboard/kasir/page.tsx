@@ -439,11 +439,20 @@ export default function KasirPage() {
       }
     });
 
-    const { data: sale, error: saleErr } = await supabase
-      .from("sales").insert(salePayload).select().single();
+    // Saat offline, insert bisa melempar (network error), bukan sekadar return {error}.
+    // Tangkap keduanya -> antre transaksi.
+    let sale: { id: string } | null = null;
+    let saleErr: unknown = null;
+    try {
+      const res = await supabase.from("sales").insert(salePayload).select().single();
+      sale = res.data as { id: string } | null;
+      saleErr = res.error;
+    } catch (e) {
+      saleErr = e;
+    }
 
     if (saleErr || !sale) {
-      // Kemungkinan offline: antre.
+      // Kemungkinan offline / network gagal: antre.
       enqueue({ sale: salePayload, items: itemsPayload, decrement, variantDecrement });
       setPendingSync(loadQueue().length);
       setSaving(false);
