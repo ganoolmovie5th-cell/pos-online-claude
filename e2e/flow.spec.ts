@@ -6,20 +6,23 @@ async function login(page: Page) {
   await page.goto(`${BASE}/login`, { waitUntil: "networkidle" });
   await page.getByPlaceholder("kamu@bisnis.com").fill("admin@posonline.app");
   await page.getByPlaceholder("••••••••").fill("admin12345");
-  await page.getByRole("button", { name: "Masuk" }).click();
-  // tunggu token, lalu navigasi manual (hindari artefak hard-nav headless)
-  await page.waitForResponse((r) => r.url().includes("/auth/v1/token"), { timeout: 15000 });
-  await page.waitForTimeout(1500);
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes("/auth/v1/token") && r.status() === 200, { timeout: 15000 }),
+    page.getByRole("button", { name: "Masuk" }).click(),
+  ]);
+  // beri waktu cookie session ditulis sebelum navigasi
+  await page.waitForTimeout(2000);
 }
 
 async function gotoDash(page: Page, path: string) {
-  // retry: kadang hard-nav bikin chrome-error, coba ulang goto
-  for (let i = 0; i < 3; i++) {
+  // Hard-nav headless kadang bikin chrome-error; goto ulang sampai halaman benar termuat.
+  for (let i = 0; i < 5; i++) {
     try {
-      await page.goto(`${BASE}${path}`, { waitUntil: "networkidle", timeout: 20000 });
-      if (!page.url().includes("chrome-error")) return;
+      await page.goto(`${BASE}${path}`, { waitUntil: "domcontentloaded", timeout: 20000 });
+      await page.waitForTimeout(1500);
+      if (page.url().includes(path)) return;
     } catch {}
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(1500);
   }
 }
 
