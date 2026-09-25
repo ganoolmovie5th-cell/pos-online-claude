@@ -439,12 +439,16 @@ export default function KasirPage() {
       }
     });
 
-    // Saat offline, insert bisa melempar (network error), bukan sekadar return {error}.
-    // Tangkap keduanya -> antre transaksi.
+    // Saat offline, insert bisa melempar ATAU menggantung (fetch tak resolve).
+    // Race dengan timeout supaya tak beku -> antre transaksi.
     let sale: { id: string } | null = null;
     let saleErr: unknown = null;
     try {
-      const res = await supabase.from("sales").insert(salePayload).select().single();
+      const insertP = supabase.from("sales").insert(salePayload).select().single();
+      const timeoutP = new Promise<never>((_, rej) =>
+        setTimeout(() => rej(new Error("offline-timeout")), 8000)
+      );
+      const res = (await Promise.race([insertP, timeoutP])) as { data: unknown; error: unknown };
       sale = res.data as { id: string } | null;
       saleErr = res.error;
     } catch (e) {

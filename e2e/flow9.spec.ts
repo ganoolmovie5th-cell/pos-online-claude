@@ -60,14 +60,22 @@ test("#7b offline queue: transaksi saat offline masuk antrean", async ({ page, c
   await page.locator("button", { hasText: pname }).first().click();
   await page.waitForTimeout(500);
 
+  page.on("pageerror", (e) => console.log("[7] PAGEERROR:", e.message));
+  // pastikan item masuk cart dulu
+  const cartText0 = await page.locator("body").innerText();
+  console.log("[7] cart ada item (Subtotal > 0):", /Subtotal[\s\S]{0,40}Rp\s?[1-9]/.test(cartText0));
+
   // OFFLINE: putus koneksi, lalu checkout
   await context.setOffline(true);
   console.log("[7] set offline");
   await page.getByPlaceholder("Nominal bayar").fill("10000");
-  await page.getByRole("button", { name: "Bayar & simpan" }).click();
-  await page.waitForTimeout(4000);
+  const payBtn = page.getByRole("button", { name: "Bayar & simpan" });
+  console.log("[7] tombol bayar enabled:", await payBtn.isEnabled());
+  await payBtn.click();
+  await page.waitForTimeout(5000);
   const offlineMsg = await page.locator("body").innerText();
   console.log("[7] pesan offline muncul:", offlineMsg.includes("diantre") || offlineMsg.includes("Offline"));
+  console.log("[7] tombol masih 'Menyimpan':", offlineMsg.includes("Menyimpan"));
 
   // cek localStorage queue terisi
   const qLen = await page.evaluate(() => {
