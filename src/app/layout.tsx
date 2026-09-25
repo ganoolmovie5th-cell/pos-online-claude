@@ -8,6 +8,9 @@ export const metadata: Metadata = {
   title: "POS Online — Kasir untuk semua jenis usaha",
   description:
     "Aplikasi kasir online multi-industri: kelola produk, catat penjualan, dan pantau omzet dari mana saja.",
+  verification: {
+    google: "hdL2f8z85ebnV1bwE8mCn8Oqn_02D9t-y0MsTzS_014",
+  },
 };
 
 export default function RootLayout({
