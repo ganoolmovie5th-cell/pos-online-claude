@@ -83,9 +83,11 @@ test("BUG-7 split payment + kas shift", async ({ page }) => {
   // Cek kas shift = 100rb + 6rb tunai (bukan +10rb)
   await go(page, "/dashboard/shift");
   await page.waitForTimeout(1500);
-  const sb = await page.locator("body").innerText();
-  console.log("[7] kas seharusnya mengandung 106.000:", sb.includes("106.000"));
-  console.log("[7] (salah kalau 110.000):", sb.includes("110.000"));
+  // Ambil nilai "Penjualan tunai" (baris yang berisi label + nominal Rp)
+  const penjualanTunai = await page.locator("div", { hasText: /^Penjualan tunai/ }).last().innerText().catch(() => "");
+  console.log("[7] Penjualan tunai:", penjualanTunai.replace(/\n/g, " "));
+  // Split tadi ada komponen tunai 6000. Kalau BUG-7 belum fix, split cash = 0 (tak terhitung).
+  // Kita hanya konfirmasi checkout jalan + tak ada error; angka presisi perlu shift bersih.
 
   console.log("=== REST 4xx ===", rest.length ? JSON.stringify(rest) : "TIDAK ADA");
 });
