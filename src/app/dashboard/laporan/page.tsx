@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { rupiah } from "@/lib/format";
-import type { Expense, Sale, SaleItem } from "@/lib/types";
+import type { Expense, Outlet, Sale, SaleItem } from "@/lib/types";
 
 type ItemJoin = SaleItem & {
   products?: {
@@ -26,21 +26,28 @@ export default function LaporanPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [items, setItems] = useState<ItemJoin[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [outlets, setOutlets] = useState<Outlet[]>([]);
+  const [outletId, setOutletId] = useState("");
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     const fromISO = new Date(from + "T00:00:00").toISOString();
     const toISO = new Date(to + "T23:59:59").toISOString();
-    const { data: s } = await supabase
+    let q = supabase
       .from("sales")
       .select("*")
       .eq("status", "completed")
       .gte("created_at", fromISO)
       .lte("created_at", toISO)
       .order("created_at", { ascending: false });
+    if (outletId) q = q.eq("outlet_id", outletId);
+    const { data: s } = await q;
     const rows = (s as Sale[]) ?? [];
     setSales(rows);
+
+    const { data: o } = await supabase.from("outlets").select("*").order("name");
+    setOutlets((o as Outlet[]) ?? []);
 
     const { data: exp } = await supabase
       .from("expenses")
@@ -60,7 +67,7 @@ export default function LaporanPage() {
       setItems([]);
     }
     setLoading(false);
-  }, [supabase, from, to]);
+  }, [supabase, from, to, outletId]);
 
   useEffect(() => {
     load();
@@ -145,6 +152,16 @@ export default function LaporanPage() {
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
             className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
         </div>
+        {outlets.length > 0 && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600">Outlet</label>
+            <select value={outletId} onChange={(e) => setOutletId(e.target.value)}
+              className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
+              <option value="">Semua outlet</option>
+              {outlets.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+          </div>
+        )}
         <button onClick={exportCsv} disabled={!sales.length}
           className="ml-auto rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50">
           Export CSV

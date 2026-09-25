@@ -38,13 +38,18 @@ Aplikasi kasir (point of sale) online multi-industri. Kelola produk, catat penju
 - Produk bundling / paket
 - Scan barcode pakai kamera
 - Cetak label harga + barcode
+- Varian produk (ukuran/warna, harga/stok beda)
+- Stok per outlet (multi-cabang)
+- Mode meja F&B (buka sesi meja, bayar per meja)
+- Cache katalog offline (kasir tetap jalan saat internet putus)
+- Kerangka Edge Function laporan harian otomatis (`supabase/functions/daily-report`)
 
 ## Setup
 
 ### 1. Supabase
 
 1. Buat project di [supabase.com](https://supabase.com).
-2. Buka **SQL Editor**, jalankan berurutan: `supabase/schema.sql` → `supabase/migration-v2.sql` (stok, void, shift, pelanggan, kasbon, multi-user) → `supabase/migration-v3.sql` (loyalty, laba, voucher, outlet, service charge, restock) → `supabase/migration-v4.sql` (pengeluaran, bundling, split payment).
+2. Buka **SQL Editor**, jalankan berurutan: `supabase/schema.sql` → `supabase/migration-v2.sql` (stok, void, shift, pelanggan, kasbon, multi-user) → `supabase/migration-v3.sql` (loyalty, laba, voucher, outlet, service charge, restock) → `supabase/migration-v4.sql` (pengeluaran, bundling, split payment) → `supabase/migration-v5.sql` (varian, stok per outlet, meja F&B).
 3. (Opsional, disarankan) Jalankan `supabase/seed-admin.sql` untuk membuat akun admin platform siap pakai:
    - Email: `admin@posonline.app`
    - Password: `admin12345` — **ganti setelah login pertama**

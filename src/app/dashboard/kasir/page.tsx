@@ -7,7 +7,9 @@ import { rupiah } from "@/lib/format";
 
 const BarcodeScanner = dynamic(() => import("@/components/BarcodeScanner"), { ssr: false });
 import { enqueue, loadQueue, clearQueue } from "@/lib/offline";
-import type { Bundle, BundleItem, Business, CartLine, Customer, Outlet, Product, Voucher } from "@/lib/types";
+
+const CATALOG_KEY = "pos_catalog_cache";
+import type { Bundle, BundleItem, Business, CartLine, Customer, Outlet, Product, ProductVariant, Voucher } from "@/lib/types";
 
 const PARK_KEY = "pos_parked_carts";
 const OUTLET_KEY = "pos_active_outlet";
@@ -19,6 +21,8 @@ export default function KasirPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [bundles, setBundles] = useState<Bundle[]>([]);
   const [bundleItems, setBundleItems] = useState<BundleItem[]>([]);
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [variantPick, setVariantPick] = useState<Product | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [business, setBusiness] = useState<Business | null>(null);
@@ -53,11 +57,29 @@ export default function KasirPage() {
       supabase.from("bundle_items").select("*"),
       supabase.auth.getUser(),
     ]);
-    setProducts((prod as Product[]) ?? []);
+    const { data: vars } = await supabase.from("product_variants").select("*");
+
+    if (prod) {
+      // Online: pakai data server + simpan cache untuk offline
+      setProducts(prod as Product[]);
+      setBundles((bnd as Bundle[]) ?? []);
+      setBundleItems((bndItems as BundleItem[]) ?? []);
+      setVariants((vars as ProductVariant[]) ?? []);
+      try {
+        localStorage.setItem(CATALOG_KEY, JSON.stringify({ products: prod, bundles: bnd, bundleItems: bndItems, variants: vars }));
+      } catch {}
+    } else {
+      // Offline: pakai cache katalog terakhir
+      try {
+        const c = JSON.parse(localStorage.getItem(CATALOG_KEY) || "null");
+        setProducts(c?.products ?? []);
+        setBundles(c?.bundles ?? []);
+        setBundleItems(c?.bundleItems ?? []);
+        setVariants(c?.variants ?? []);
+      } catch {}
+    }
     setCustomers((cust as Customer[]) ?? []);
     setOutlets((outl as Outlet[]) ?? []);
-    setBundles((bnd as Bundle[]) ?? []);
-    setBundleItems((bndItems as BundleItem[]) ?? []);
     if (user.user) {
       const { data: profile } = await supabase
         .from("profiles")
@@ -88,7 +110,12 @@ export default function KasirPage() {
         if (sale) {
           const items = item.items.map((it) => ({ ...it, sale_id: sale.id }));
           await supabase.from("sale_items").insert(items);
-          await supabase.rpc("decrement_stock", { items: item.decrement });
+          const oid = (item.sale as { outlet_id?: string | null }).outlet_id;
+          if (oid) {
+            await supabase.rpc("decrement_outlet_stock", { p_outlet: oid, items: item.decrement });
+          } else {
+            await supabase.rpc("decrement_stock", { items: item.decrement });
+          }
         }
       }
       clearQueue();
@@ -132,17 +159,45 @@ export default function KasirPage() {
     }
   }
 
-  // Key UI: product_id untuk produk, nama untuk bundle (product_id null)
-  const lineKey = (l: CartLine) => l.product_id ?? "bundle:" + l.name;
+  // Key UI unik: varian > produk > bundle(nama)
+  const lineKey = (l: CartLine) =>
+    l.variant_id ? "var:" + l.variant_id : l.product_id ?? "bundle:" + l.name;
+
+  function hasVariants(p: Product) {
+    return variants.some((v) => v.product_id === p.id);
+  }
 
   function addToCart(p: Product) {
+    if (hasVariants(p)) {
+      setVariantPick(p);
+      return;
+    }
     setCart((prev) => {
-      const found = prev.find((l) => l.product_id === p.id);
+      const found = prev.find((l) => l.product_id === p.id && !l.variant_id);
       if (found) {
-        return prev.map((l) => (l.product_id === p.id ? { ...l, qty: l.qty + 1 } : l));
+        return prev.map((l) => (l.product_id === p.id && !l.variant_id ? { ...l, qty: l.qty + 1 } : l));
       }
       return [...prev, { product_id: p.id, name: p.name, price: p.price, qty: 1, discount: 0 }];
     });
+  }
+
+  function addVariant(p: Product, v: ProductVariant) {
+    setCart((prev) => {
+      const found = prev.find((l) => l.variant_id === v.id);
+      if (found) {
+        return prev.map((l) => (l.variant_id === v.id ? { ...l, qty: l.qty + 1 } : l));
+      }
+      return [...prev, {
+        product_id: p.id,
+        variant_id: v.id,
+        variant_name: v.name,
+        name: `${p.name} — ${v.name}`,
+        price: v.price,
+        qty: 1,
+        discount: 0,
+      }];
+    });
+    setVariantPick(null);
   }
 
   function addBundle(b: Bundle) {
@@ -311,6 +366,8 @@ export default function KasirPage() {
     };
     const itemsPayload = cart.map((l) => ({
       product_id: l.product_id,
+      variant_id: l.variant_id ?? null,
+      variant_name: l.variant_name ?? null,
       name: l.name,
       price: l.price,
       qty: l.qty,
@@ -347,7 +404,12 @@ export default function KasirPage() {
       return;
     }
 
-    await supabase.rpc("decrement_stock", { items: decrement });
+    if (outletId) {
+      // Stok per outlet aktif
+      await supabase.rpc("decrement_outlet_stock", { p_outlet: outletId, items: decrement });
+    } else {
+      await supabase.rpc("decrement_stock", { items: decrement });
+    }
 
     if (isDebt) {
       await supabase.from("debts").insert({
@@ -407,6 +469,26 @@ export default function KasirPage() {
           </button>
         </div>
         {scanning && <BarcodeScanner onDetected={onCameraDetect} onClose={() => setScanning(false)} />}
+        {variantPick && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setVariantPick(null)}>
+            <div className="w-full max-w-sm rounded-xl bg-white p-5" onClick={(e) => e.stopPropagation()}>
+              <h3 className="font-semibold text-slate-900">Pilih varian — {variantPick.name}</h3>
+              <div className="mt-4 grid gap-2">
+                {variants.filter((v) => v.product_id === variantPick.id).map((v) => {
+                  const out = v.stock != null && v.stock <= 0;
+                  return (
+                    <button key={v.id} onClick={() => addVariant(variantPick, v)} disabled={out}
+                      className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-2 text-left hover:border-brand-400 disabled:opacity-50">
+                      <span className="text-sm font-medium text-slate-800">{v.name}</span>
+                      <span className="text-sm text-brand-700">{rupiah(v.price)}{out ? " (habis)" : ""}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <button onClick={() => setVariantPick(null)} className="mt-4 w-full rounded-lg border border-slate-300 py-2 text-sm text-slate-600">Batal</button>
+            </div>
+          </div>
+        )}
 
         {/* Transaksi tertahan */}
         {parked.length > 0 && (

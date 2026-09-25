@@ -55,6 +55,7 @@ export type Sale = {
   service_charge: number;
   voucher_code: string | null;
   outlet_id: string | null;
+  table_id: string | null;
   payments: PaymentPart[] | null;
   created_at: string;
 };
@@ -93,10 +94,48 @@ export type SaleItem = {
   sale_id: string;
   business_id: string;
   product_id: string | null;
+  variant_id: string | null;
+  variant_name: string | null;
   name: string;
   price: number;
   qty: number;
   line_total: number;
+};
+
+export type ProductVariant = {
+  id: string;
+  business_id: string;
+  product_id: string;
+  name: string;
+  price: number;
+  stock: number | null;
+  created_at: string;
+};
+
+export type OutletStock = {
+  id: string;
+  business_id: string;
+  outlet_id: string;
+  product_id: string;
+  stock: number;
+};
+
+export type Table = {
+  id: string;
+  business_id: string;
+  name: string;
+  created_at: string;
+};
+
+export type TableSession = {
+  id: string;
+  business_id: string;
+  table_id: string;
+  status: string; // open | closed
+  items: { product_id: string | null; variant_id?: string | null; name: string; price: number; qty: number }[];
+  sale_id: string | null;
+  opened_at: string;
+  closed_at: string | null;
 };
 
 export type Shift = {
@@ -165,6 +204,8 @@ export type Profile = {
 
 export type CartLine = {
   product_id: string | null;       // null untuk baris paket/bundle
+  variant_id?: string | null;      // varian produk kalau ada
+  variant_name?: string | null;
   name: string;
   price: number;
   qty: number;

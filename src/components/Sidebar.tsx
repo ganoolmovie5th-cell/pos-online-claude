@@ -8,10 +8,13 @@ import { createClient } from "@/lib/supabase/client";
 const links = [
   { href: "/dashboard", label: "Dashboard", ownerOnly: false },
   { href: "/dashboard/kasir", label: "Kasir", ownerOnly: false },
+  { href: "/dashboard/meja", label: "Meja (F&B)", ownerOnly: false },
   { href: "/dashboard/produk", label: "Produk", ownerOnly: false },
+  { href: "/dashboard/varian", label: "Varian", ownerOnly: true },
   { href: "/dashboard/bundle", label: "Paket", ownerOnly: true },
   { href: "/dashboard/restock", label: "Stok Masuk", ownerOnly: true },
   { href: "/dashboard/opname", label: "Stok Opname", ownerOnly: true },
+  { href: "/dashboard/stok-outlet", label: "Stok Outlet", ownerOnly: true },
   { href: "/dashboard/label", label: "Cetak Label", ownerOnly: true },
   { href: "/dashboard/transaksi", label: "Transaksi", ownerOnly: false },
   { href: "/dashboard/pelanggan", label: "Pelanggan", ownerOnly: false },
