@@ -105,21 +105,26 @@ export default function KasirPage() {
     const sync = async () => {
       const q = loadQueue();
       if (q.length === 0) return;
+      const failed: typeof q = [];
       for (const item of q) {
-        const { data: sale } = await supabase.from("sales").insert(item.sale).select().single();
-        if (sale) {
-          const items = item.items.map((it) => ({ ...it, sale_id: sale.id }));
-          await supabase.from("sale_items").insert(items);
-          const oid = (item.sale as { outlet_id?: string | null }).outlet_id;
-          if (oid) {
-            await supabase.rpc("decrement_outlet_stock", { p_outlet: oid, items: item.decrement });
-          } else {
-            await supabase.rpc("decrement_stock", { items: item.decrement });
-          }
+        const { data: sale, error } = await supabase.from("sales").insert(item.sale).select().single();
+        if (error || !sale) {
+          failed.push(item); // gagal -> pertahankan, jangan buang
+          continue;
+        }
+        const items = item.items.map((it) => ({ ...it, sale_id: sale.id }));
+        await supabase.from("sale_items").insert(items);
+        const oid = (item.sale as { outlet_id?: string | null }).outlet_id;
+        if (oid) {
+          await supabase.rpc("decrement_outlet_stock", { p_outlet: oid, items: item.decrement });
+        } else {
+          await supabase.rpc("decrement_stock", { items: item.decrement });
         }
       }
+      // Simpan hanya yang masih gagal (bukan hapus semua)
       clearQueue();
-      setPendingSync(0);
+      failed.forEach((f) => enqueue(f));
+      setPendingSync(failed.length);
       load();
     };
     window.addEventListener("online", sync);
@@ -247,7 +252,12 @@ export default function KasirPage() {
   const wantRedeem = Math.min(parseInt(redeemPoints, 10) || 0, cust?.points ?? 0);
   const redeemDisc = wantRedeem * pointValue;
 
-  const totalDiscount = Math.min(discFromMode + voucherDisc + redeemDisc, subtotal);
+  // Diskon non-poin didahulukan; poin hanya menutup sisa agar tak ada poin hangus.
+  const nonPointDisc = Math.min(discFromMode + voucherDisc, subtotal);
+  const maxRedeemDisc = subtotal - nonPointDisc;
+  const effectiveRedeemDisc = Math.min(redeemDisc, maxRedeemDisc);
+  const effectiveRedeemPoints = pointValue > 0 ? Math.ceil(effectiveRedeemDisc / pointValue) : 0;
+  const totalDiscount = nonPointDisc + effectiveRedeemDisc;
   const afterDiscount = subtotal - totalDiscount;
 
   const taxPercent = business?.tax_percent ?? 0;
@@ -360,7 +370,7 @@ export default function KasirPage() {
       customer_id: customerId || null,
       is_debt: isDebt,
       points_earned: pointsEarned,
-      points_redeemed: wantRedeem,
+      points_redeemed: effectiveRedeemPoints,
       voucher_code: voucher?.code ?? null,
       outlet_id: outletId || null,
     };
@@ -418,10 +428,10 @@ export default function KasirPage() {
     }
 
     // Loyalty: tambah poin didapat, kurangi poin ditebus
-    if (customerId && (pointsEarned > 0 || wantRedeem > 0)) {
+    if (customerId && (pointsEarned > 0 || effectiveRedeemPoints > 0)) {
       await supabase.rpc("adjust_points", {
         p_customer: customerId,
-        p_delta: pointsEarned - wantRedeem,
+        p_delta: pointsEarned - effectiveRedeemPoints,
       });
     }
 
