@@ -72,7 +72,7 @@ test("#7b offline queue: transaksi saat offline masuk antrean", async ({ page, c
   const payBtn = page.getByRole("button", { name: "Bayar & simpan" });
   console.log("[7] tombol bayar enabled:", await payBtn.isEnabled());
   await payBtn.click();
-  await page.waitForTimeout(5000);
+  await page.waitForTimeout(11000); // > timeout race 8s
   const offlineMsg = await page.locator("body").innerText();
   console.log("[7] pesan offline muncul:", offlineMsg.includes("diantre") || offlineMsg.includes("Offline"));
   console.log("[7] tombol masih 'Menyimpan':", offlineMsg.includes("Menyimpan"));
