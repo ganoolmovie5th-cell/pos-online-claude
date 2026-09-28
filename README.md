@@ -49,7 +49,16 @@ Aplikasi kasir (point of sale) online multi-industri. Kelola produk, catat penju
 ### 1. Supabase
 
 1. Buat project di [supabase.com](https://supabase.com).
-2. Buka **SQL Editor**, jalankan berurutan: `supabase/schema.sql` → `supabase/migration-v2.sql` (stok, void, shift, pelanggan, kasbon, multi-user) → `supabase/migration-v3.sql` (loyalty, laba, voucher, outlet, service charge, restock) → `supabase/migration-v4.sql` (pengeluaran, bundling, split payment) → `supabase/migration-v5.sql` (varian, stok per outlet, meja F&B) → `supabase/migration-v6.sql` (perbaikan: cost snapshot + stok varian) → `supabase/migration-v7.sql` (perbaikan: void transaksi lengkap).
+2. Buka **SQL Editor**, jalankan berurutan:
+   - `supabase/schema.sql` — tabel inti + RLS + trigger
+   - `supabase/migration-v2.sql` — stok, void, shift, pelanggan, kasbon, multi-user
+   - `supabase/migration-v3.sql` — loyalty, laba, voucher, outlet, service charge, restock
+   - `supabase/migration-v4.sql` — pengeluaran, bundling, split payment
+   - `supabase/migration-v5.sql` — varian, stok per outlet, meja F&B
+   - `supabase/migration-v6.sql` — perbaikan: cost snapshot + stok varian
+   - `supabase/migration-v7.sql` — perbaikan: void transaksi lengkap (stok/poin/kasbon)
+   - `supabase/migration-v8.sql` — **kritis**: default `business_id` (tanpa ini semua insert ditolak RLS)
+   - `supabase/migration-v9.sql` — perbaikan: konsistensi stok outlet
 3. (Opsional, disarankan) Jalankan `supabase/seed-admin.sql` untuk membuat akun admin platform siap pakai:
    - Email: `admin@posonline.app`
    - Password: `admin12345` — **ganti setelah login pertama**
@@ -85,21 +94,38 @@ npm run dev
 src/
   app/
     page.tsx              → landing
-    login, signup/        → auth
+    login, signup/        → auth (signup dukung kode undangan staf)
+    suspended/            → halaman bisnis ditangguhkan
+    admin/                → panel super-admin (lihat/suspend/hapus bisnis)
     dashboard/
-      layout.tsx          → shell + sidebar (proteksi login)
-      page.tsx            → ringkasan
-      kasir/              → transaksi baru
-      produk/             → CRUD produk
-      transaksi/          → riwayat + struk
-  components/Sidebar.tsx
+      layout.tsx          → shell + sidebar (proteksi login + role)
+      page.tsx            → ringkasan + peringatan stok kritis
+      kasir/              → transaksi (diskon, voucher, poin, split, bundle, varian)
+      produk/ varian/     → CRUD produk + varian
+      bundle/ restock/    → paket + stok masuk (supplier)
+      opname/ stok-outlet/→ penyesuaian stok + stok per outlet
+      transaksi/          → riwayat + filter + struk + void
+      pelanggan/ voucher/ → pelanggan+kasbon + kupon
+      shift/ biaya/       → shift kas + pengeluaran
+      meja/ laporan/      → mode F&B + laporan laba-rugi + CSV
+      anggota/ pengaturan/→ multi-user + setelan bisnis
+  components/             → Sidebar, BarcodeScanner, RegisterSW
   lib/
     supabase/             → client, server, middleware
-    auth.ts               → requireBusiness()
-    format.ts, types.ts
-supabase/schema.sql       → tabel + RLS + trigger
+    auth.ts               → requireBusiness(), requireAdmin()
+    format.ts, types.ts, receipt.ts, offline.ts
+supabase/
+  schema.sql              → tabel inti + RLS + trigger
+  migration-v2..v9.sql    → fitur lanjutan + perbaikan (jalankan berurutan)
+  seed-admin.sql          → akun admin siap pakai
+  functions/daily-report  → kerangka Edge Function laporan harian
+e2e/                      → uji Playwright (alur inti terverifikasi di produksi)
 ```
 
 ## Catatan
 
-Multi-tenant di level baris (RLS berbasis `business_id`). Payment gateway, hardware printer, dan multi-outlet belum termasuk — bisa ditambah menyusul.
+- Multi-tenant di level baris (RLS berbasis `business_id`), diisi otomatis lewat default `current_business_id()`.
+- Multi-outlet berupa pengelompokan dalam satu bisnis (bukan isolasi RLS terpisah).
+- Offline: antre transaksi + cache katalog, bukan offline-first penuh (tanpa sinkronisasi dua arah).
+- Belum termasuk: payment gateway asli, printer thermal, notifikasi email otomatis (baru kerangka).
+- Signup butuh verifikasi email bila "Confirm email" aktif di Supabase.
