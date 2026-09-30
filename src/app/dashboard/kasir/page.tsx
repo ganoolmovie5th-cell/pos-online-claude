@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
-import { rupiah } from "@/lib/format";
+import { rupiah, roundTo } from "@/lib/format";
 
 const BarcodeScanner = dynamic(() => import("@/components/BarcodeScanner"), { ssr: false });
 import { enqueue, loadQueue, clearQueue } from "@/lib/offline";
@@ -308,8 +308,14 @@ export default function KasirPage() {
   const serviceCharge = Math.round((afterDiscount * scPercent) / 100);
   const total = afterDiscount + tax + serviceCharge;
 
+  // Pembulatan tunai: total yang ditagih untuk pembayaran tunai dibulatkan
+  // ke kelipatan yang diset bisnis. Metode non-tunai pakai total apa adanya.
+  const cashRounding = business?.cash_rounding ?? 0;
+  const cashTotal = method === "cash" ? roundTo(total, cashRounding) : total;
+  const roundingAdj = cashTotal - total;
+
   const paidNum = parseFloat(paid) || 0;
-  const change = paidNum - total;
+  const change = paidNum - cashTotal;
 
   // poin didapat
   const ppa = business?.points_per_amount ?? 1000;
@@ -368,7 +374,7 @@ export default function KasirPage() {
 
   async function checkout() {
     if (cart.length === 0) return;
-    if (method === "cash" && paidNum < total) {
+    if (method === "cash" && paidNum < cashTotal) {
       alert("Nominal bayar kurang dari total.");
       return;
     }
@@ -403,7 +409,7 @@ export default function KasirPage() {
       discount: totalDiscount,
       tax,
       service_charge: serviceCharge,
-      total,
+      total: method === "cash" ? cashTotal : total,
       paid: isDebt ? 0 : method === "cash" ? paidNum : isSplit ? splitSum : total,
       change: method === "cash" ? Math.max(change, 0) : isSplit ? Math.max(splitSum - total, 0) : 0,
       payment_method: method,
@@ -710,8 +716,14 @@ export default function KasirPage() {
           {tax > 0 && <div className="flex justify-between"><span className="text-slate-500">Pajak ({taxPercent}%)</span><span>{rupiah(tax)}</span></div>}
           {serviceCharge > 0 && <div className="flex justify-between"><span className="text-slate-500">Service ({scPercent}%)</span><span>{rupiah(serviceCharge)}</span></div>}
 
+          {method === "cash" && roundingAdj !== 0 && (
+            <div className="flex justify-between text-xs text-slate-400">
+              <span>Pembulatan</span>
+              <span>{roundingAdj > 0 ? "+" : ""}{rupiah(roundingAdj)}</span>
+            </div>
+          )}
           <div className="flex justify-between border-t border-slate-100 pt-2 text-base font-bold">
-            <span>Total</span><span>{rupiah(total)}</span>
+            <span>Total</span><span>{rupiah(method === "cash" ? cashTotal : total)}</span>
           </div>
           {customerId && pointsEarned > 0 && (
             <p className="text-right text-xs text-brand-600">Dapat +{pointsEarned} poin</p>

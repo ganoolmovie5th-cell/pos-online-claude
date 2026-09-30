@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { rupiah, tanggal } from "@/lib/format";
 import { receiptText } from "@/lib/receipt";
+import { buildEscposReceipt, connectThermal, printThermal } from "@/lib/thermal";
 import type { Business, Sale, SaleItem } from "@/lib/types";
 
 const methodLabel: Record<string, string> = {
@@ -20,6 +21,13 @@ export default function TransaksiPage() {
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<Sale | null>(null);
   const [items, setItems] = useState<SaleItem[]>([]);
+
+  // retur
+  const [refundSale, setRefundSale] = useState<Sale | null>(null);
+  const [refundItems, setRefundItems] = useState<SaleItem[]>([]);
+  const [refundQty, setRefundQty] = useState<Record<string, number>>({});
+  const [refundReason, setRefundReason] = useState("");
+  const [refundBusy, setRefundBusy] = useState(false);
 
   // filter
   const [from, setFrom] = useState("");
@@ -78,10 +86,53 @@ export default function TransaksiPage() {
     load();
   }
 
+  async function openRefund(sale: Sale) {
+    const { data } = await supabase.from("sale_items").select("*").eq("sale_id", sale.id);
+    setRefundItems((data as SaleItem[]) ?? []);
+    setRefundQty({});
+    setRefundReason("");
+    setRefundSale(sale);
+  }
+
+  async function submitRefund() {
+    if (!refundSale) return;
+    const payload = Object.entries(refundQty)
+      .filter(([, q]) => q > 0)
+      .map(([sale_item_id, qty]) => ({ sale_item_id, qty }));
+    if (payload.length === 0) {
+      alert("Pilih minimal satu item untuk diretur.");
+      return;
+    }
+    setRefundBusy(true);
+    const { error } = await supabase.rpc("refund_sale_items", {
+      p_sale_id: refundSale.id,
+      p_items: payload,
+      p_reason: refundReason.trim() || null,
+    });
+    setRefundBusy(false);
+    if (error) {
+      alert("Gagal: " + error.message);
+      return;
+    }
+    setRefundSale(null);
+    load();
+  }
+
   function shareWa() {
     if (!active) return;
     const txt = receiptText(business, active, items);
     window.open("https://wa.me/?text=" + encodeURIComponent(txt), "_blank");
+  }
+
+  async function printThermalReceipt() {
+    if (!active) return;
+    try {
+      const conn = await connectThermal();
+      const data = buildEscposReceipt(business, active, items);
+      await printThermal(conn, data);
+    } catch (e) {
+      alert("Cetak thermal gagal: " + (e instanceof Error ? e.message : String(e)));
+    }
   }
 
   async function copyReceipt() {
@@ -158,6 +209,8 @@ export default function TransaksiPage() {
                   <td className="px-4 py-3">
                     {s.status === "voided" ? (
                       <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">Dibatalkan</span>
+                    ) : s.status === "refunded" ? (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Diretur</span>
                     ) : (
                       <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Selesai</span>
                     )}
@@ -165,6 +218,9 @@ export default function TransaksiPage() {
                   <td className="px-4 py-3 text-right font-medium">{rupiah(s.total)}</td>
                   <td className="px-4 py-3 text-right">
                     <button onClick={() => openReceipt(s)} className="text-brand-700 hover:underline">Struk</button>
+                    {s.status !== "voided" && s.status !== "refunded" && (
+                      <button onClick={() => openRefund(s)} className="ml-3 text-amber-700 hover:underline">Retur</button>
+                    )}
                     {s.status !== "voided" && (
                       <button onClick={() => voidSale(s)} className="ml-3 text-red-600 hover:underline">Void</button>
                     )}
@@ -225,8 +281,87 @@ export default function TransaksiPage() {
             <div className="no-print mt-6 grid grid-cols-2 gap-2">
               <button onClick={() => window.print()} className="rounded-lg bg-brand-600 py-2 text-sm font-semibold text-white hover:bg-brand-700">Cetak</button>
               <button onClick={shareWa} className="rounded-lg bg-green-600 py-2 text-sm font-semibold text-white hover:bg-green-700">WhatsApp</button>
+              <button onClick={printThermalReceipt} className="rounded-lg border border-slate-300 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Thermal</button>
               <button onClick={copyReceipt} className="rounded-lg border border-slate-300 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Salin</button>
-              <button onClick={() => setActive(null)} className="rounded-lg border border-slate-300 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Tutup</button>
+              <button onClick={() => setActive(null)} className="col-span-2 rounded-lg border border-slate-300 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Tutup</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal retur */}
+      {refundSale && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-bold text-slate-900">Retur transaksi</h2>
+            <p className="mt-1 text-sm text-slate-500">Pilih item dan jumlah yang dikembalikan. Stok akan ditambah kembali.</p>
+
+            <div className="mt-4 space-y-2">
+              {refundItems.map((it) => {
+                const sisa = it.qty - (it.refunded_qty ?? 0);
+                const unit = it.qty > 0 ? it.line_total / it.qty : 0;
+                return (
+                  <div key={it.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-slate-800">{it.name}</p>
+                      <p className="text-xs text-slate-500">
+                        {rupiah(unit)} · terjual {it.qty}
+                        {(it.refunded_qty ?? 0) > 0 && `, sudah retur ${it.refunded_qty}`}
+                      </p>
+                    </div>
+                    <input
+                      type="number"
+                      min={0}
+                      max={sisa}
+                      disabled={sisa <= 0}
+                      value={refundQty[it.id] ?? 0}
+                      onChange={(e) => {
+                        const v = Math.max(0, Math.min(sisa, parseInt(e.target.value, 10) || 0));
+                        setRefundQty((q) => ({ ...q, [it.id]: v }));
+                      }}
+                      className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-right text-sm disabled:bg-slate-100"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-4">
+              <label className="mb-1 block text-xs font-medium text-slate-600">Alasan (opsional)</label>
+              <input
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                placeholder="Barang rusak / salah pesan"
+              />
+            </div>
+
+            <div className="mt-3 flex justify-between text-sm font-semibold text-slate-800">
+              <span>Total refund</span>
+              <span>
+                {rupiah(
+                  refundItems.reduce((sum, it) => {
+                    const unit = it.qty > 0 ? it.line_total / it.qty : 0;
+                    return sum + unit * (refundQty[it.id] ?? 0);
+                  }, 0)
+                )}
+              </span>
+            </div>
+
+            <div className="mt-6 grid grid-cols-2 gap-2">
+              <button
+                onClick={submitRefund}
+                disabled={refundBusy}
+                className="rounded-lg bg-amber-600 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+              >
+                {refundBusy ? "Memproses..." : "Proses retur"}
+              </button>
+              <button
+                onClick={() => setRefundSale(null)}
+                className="rounded-lg border border-slate-300 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+              >
+                Batal
+              </button>
             </div>
           </div>
         </div>

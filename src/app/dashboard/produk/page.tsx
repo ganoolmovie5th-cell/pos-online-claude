@@ -92,7 +92,14 @@ export default function ProdukPage() {
 
   async function removeProduct(id: string) {
     if (!confirm("Hapus produk ini?")) return;
+    const prod = products.find((p) => p.id === id);
     await supabase.from("products").delete().eq("id", id);
+    await supabase.rpc("log_action", {
+      p_action: "delete_product",
+      p_entity: "products",
+      p_entity_id: id,
+      p_detail: prod ? { name: prod.name } : null,
+    });
     load();
   }
 

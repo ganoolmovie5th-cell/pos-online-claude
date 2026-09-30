@@ -42,7 +42,14 @@ Aplikasi kasir (point of sale) online multi-industri. Kelola produk, catat penju
 - Stok per outlet (multi-cabang)
 - Mode meja F&B (buka sesi meja, bayar per meja)
 - Cache katalog offline (kasir tetap jalan saat internet putus)
-- Kerangka Edge Function laporan harian otomatis (`supabase/functions/daily-report`)
+- Retur/refund sebagian (pilih item + qty, restok otomatis, poin proporsional)
+- Kelola kategori (rename/hapus, hitung produk per kategori)
+- Analitik lanjut (banding 7 hari, rata-rata transaksi, jam ramai)
+- Export laporan ke PDF (cetak native)
+- Pembulatan tunai (kelipatan Rp100/500/1.000)
+- Log aktivitas (void, refund, hapus produk)
+- Email laporan harian per pemilik bisnis (`supabase/functions/daily-report`, butuh Resend — lihat `docs/INTEGRATIONS.md`)
+- Kerangka QRIS dinamis (Midtrans) + cetak thermal ESC/POS (WebUSB) — lihat `docs/INTEGRATIONS.md`
 
 ## Setup
 
@@ -59,6 +66,8 @@ Aplikasi kasir (point of sale) online multi-industri. Kelola produk, catat penju
    - `supabase/migration-v7.sql` — perbaikan: void transaksi lengkap (stok/poin/kasbon)
    - `supabase/migration-v8.sql` — **kritis**: default `business_id` (tanpa ini semua insert ditolak RLS)
    - `supabase/migration-v9.sql` — perbaikan: konsistensi stok outlet
+   - `supabase/migration-v10.sql` — retur/refund sebagian (tabel refunds + RPC)
+   - `supabase/migration-v11.sql` — pembulatan tunai + audit log (jalankan setelah v10)
 3. (Opsional, disarankan) Jalankan `supabase/seed-admin.sql` untuk membuat akun admin platform siap pakai:
    - Email: `admin@posonline.app`
    - Password: `admin12345` — **ganti setelah login pertama**

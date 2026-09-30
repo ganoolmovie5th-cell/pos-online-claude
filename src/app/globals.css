@@ -15,7 +15,14 @@ body {
   /* Sembunyikan semua, tampilkan hanya area struk */
   body * { visibility: hidden; }
   #receipt, #receipt *,
-  #labels, #labels * { visibility: visible; }
+  #labels, #labels *,
+  #print-area, #print-area * { visibility: visible; }
+  #print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
   #receipt {
     position: absolute;
     left: 0;

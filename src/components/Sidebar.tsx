@@ -10,6 +10,7 @@ const links = [
   { href: "/dashboard/kasir", label: "Kasir", ownerOnly: false },
   { href: "/dashboard/meja", label: "Meja (F&B)", ownerOnly: false },
   { href: "/dashboard/produk", label: "Produk", ownerOnly: false },
+  { href: "/dashboard/kategori", label: "Kategori", ownerOnly: true },
   { href: "/dashboard/varian", label: "Varian", ownerOnly: true },
   { href: "/dashboard/bundle", label: "Paket", ownerOnly: true },
   { href: "/dashboard/restock", label: "Stok Masuk", ownerOnly: true },
@@ -22,7 +23,9 @@ const links = [
   { href: "/dashboard/biaya", label: "Pengeluaran", ownerOnly: true },
   { href: "/dashboard/shift", label: "Shift", ownerOnly: false },
   { href: "/dashboard/laporan", label: "Laporan", ownerOnly: true },
+  { href: "/dashboard/analitik", label: "Analitik", ownerOnly: true },
   { href: "/dashboard/anggota", label: "Anggota", ownerOnly: true },
+  { href: "/dashboard/audit", label: "Log Aktivitas", ownerOnly: true },
   { href: "/dashboard/pengaturan", label: "Pengaturan", ownerOnly: true },
 ];
 

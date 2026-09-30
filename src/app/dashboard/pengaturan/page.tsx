@@ -64,6 +64,7 @@ export default function PengaturanPage() {
         service_charge_percent: biz.service_charge_percent,
         points_per_amount: biz.points_per_amount,
         point_value: biz.point_value,
+        cash_rounding: biz.cash_rounding,
         address: biz.address,
         phone: biz.phone,
         receipt_footer: biz.receipt_footer,
@@ -124,6 +125,18 @@ export default function PengaturanPage() {
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100" />
           </Field>
         </div>
+
+        <Field label="Pembulatan tunai (Rp)">
+          <select value={biz.cash_rounding} disabled={!canEdit}
+            onChange={(e) => setBiz({ ...biz, cash_rounding: parseInt(e.target.value, 10) || 0 })}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100">
+            <option value={0}>Tanpa pembulatan</option>
+            <option value={100}>Kelipatan Rp100</option>
+            <option value={500}>Kelipatan Rp500</option>
+            <option value={1000}>Kelipatan Rp1.000</option>
+          </select>
+          <p className="mt-1 text-xs text-slate-400">Hanya untuk pembayaran tunai. Total dibulatkan saat bayar.</p>
+        </Field>
 
         <Field label="Nomor telepon">
           <input value={biz.phone ?? ""} disabled={!canEdit}

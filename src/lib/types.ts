@@ -6,6 +6,7 @@ export type Business = {
   service_charge_percent: number;
   points_per_amount: number;
   point_value: number;
+  cash_rounding: number;
   address: string | null;
   phone: string | null;
   receipt_footer: string | null;
@@ -45,8 +46,9 @@ export type Sale = {
   paid: number;
   change: number;
   payment_method: string;
-  status: string; // completed | voided
+  status: string; // completed | voided | refunded
   voided_at: string | null;
+  refunded_total: number;
   shift_id: string | null;
   customer_id: string | null;
   is_debt: boolean;
@@ -101,6 +103,29 @@ export type SaleItem = {
   cost_price: number;
   qty: number;
   line_total: number;
+  refunded_qty: number;
+};
+
+export type Refund = {
+  id: string;
+  business_id: string;
+  sale_id: string;
+  cashier_id: string | null;
+  amount: number;
+  reason: string | null;
+  created_at: string;
+};
+
+export type RefundItem = {
+  id: string;
+  business_id: string;
+  refund_id: string;
+  sale_item_id: string | null;
+  product_id: string | null;
+  variant_id: string | null;
+  name: string;
+  qty: number;
+  amount: number;
 };
 
 export type ProductVariant = {
@@ -200,6 +225,17 @@ export type Profile = {
   full_name: string | null;
   role: string; // owner | cashier
   is_platform_admin: boolean;
+  created_at: string;
+};
+
+export type AuditLog = {
+  id: string;
+  business_id: string;
+  actor_id: string | null;
+  action: string;
+  entity: string | null;
+  entity_id: string | null;
+  detail: Record<string, unknown> | null;
   created_at: string;
 };
 
