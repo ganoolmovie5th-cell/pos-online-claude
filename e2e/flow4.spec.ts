@@ -113,7 +113,7 @@ test("BUG-8 kasbon void: utang batal + poin balik", async ({ page }) => {
   await page.locator("select").filter({ hasText: "Tunai" }).selectOption("debt");
   await page.waitForTimeout(500);
   // pilih pelanggan (select pelanggan)
-  await page.locator("select").filter({ hasText: "Tanpa pelanggan" }).selectOption({ label: new RegExp(cust) }).catch(async () => {
+  await page.locator("select").filter({ hasText: "Tanpa pelanggan" }).selectOption({ label: cust }).catch(async () => {
     await page.locator("select").last().selectOption({ index: 1 }).catch(() => {});
   });
   await page.waitForTimeout(500);

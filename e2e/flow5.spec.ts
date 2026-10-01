@@ -101,7 +101,7 @@ test("diskon persen + tebus poin", async ({ page }) => {
   // 50rb - 10% = 45rb
   console.log("[diskon%] total 45.000 muncul:", body.includes("45.000"));
   // pilih pelanggan supaya dapat poin
-  await page.locator("select").filter({ hasText: "Tanpa pelanggan" }).selectOption({ label: new RegExp(cust) }).catch(() => {});
+  await page.locator("select").filter({ hasText: "Tanpa pelanggan" }).selectOption({ label: cust }).catch(() => {});
   await page.waitForTimeout(500);
   await page.getByPlaceholder("Nominal bayar").fill("45000");
   await page.getByRole("button", { name: "Bayar & simpan" }).click();
