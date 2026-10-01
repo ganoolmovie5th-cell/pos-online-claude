@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useApp } from "@/lib/i18n/provider";
 
 export default function AdminActions({
   businessId,
@@ -13,6 +14,7 @@ export default function AdminActions({
   name: string;
   suspended: boolean;
 }) {
+  const { t } = useApp();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
@@ -25,25 +27,20 @@ export default function AdminActions({
       .eq("id", businessId);
     setBusy(false);
     if (error) {
-      alert("Gagal: " + error.message);
+      alert(t("admin.error") + error.message);
       return;
     }
     router.refresh();
   }
 
   async function remove() {
-    if (
-      !confirm(
-        `Hapus bisnis "${name}" beserta semua produk & transaksinya? Tindakan ini permanen.`
-      )
-    )
-      return;
+    if (!confirm(t("admin.confirmDelete").replace("{n}", name))) return;
     setBusy(true);
     const supabase = createClient();
     const { error } = await supabase.from("businesses").delete().eq("id", businessId);
     setBusy(false);
     if (error) {
-      alert("Gagal menghapus: " + error.message);
+      alert(t("admin.deleteError") + error.message);
       return;
     }
     router.refresh();
@@ -56,14 +53,14 @@ export default function AdminActions({
         disabled={busy}
         className="text-sm font-medium text-amber-600 hover:underline disabled:opacity-50"
       >
-        {suspended ? "Aktifkan" : "Tangguhkan"}
+        {suspended ? t("admin.action.activate") : t("admin.action.suspend")}
       </button>
       <button
         onClick={remove}
         disabled={busy}
         className="text-sm font-medium text-red-600 hover:underline disabled:opacity-50"
       >
-        Hapus
+        {t("admin.action.delete")}
       </button>
     </div>
   );

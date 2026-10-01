@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { rupiah } from "@/lib/format";
 import type { Category, Product } from "@/lib/types";
+import { useApp } from "@/lib/i18n/provider";
 
 type FormState = {
   id: string | null;
@@ -28,6 +29,7 @@ const emptyForm: FormState = {
 };
 
 export default function ProdukPage() {
+  const { t } = useApp();
   const supabase = createClient();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -56,7 +58,7 @@ export default function ProdukPage() {
     setErr("");
     const price = parseFloat(form.price) || 0;
     if (!form.name.trim()) {
-      setErr("Nama produk wajib diisi.");
+      setErr(t("produk.errNameRequired"));
       return;
     }
     const payload = {
@@ -91,7 +93,7 @@ export default function ProdukPage() {
   }
 
   async function removeProduct(id: string) {
-    if (!confirm("Hapus produk ini?")) return;
+    if (!confirm(t("produk.confirmDelete"))) return;
     const prod = products.find((p) => p.id === id);
     await supabase.from("products").delete().eq("id", id);
     await supabase.rpc("log_action", {
@@ -122,51 +124,51 @@ export default function ProdukPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <h1 className="text-2xl font-bold text-slate-900">Produk</h1>
-      <p className="mt-1 text-sm text-slate-500">Kelola item, harga, kategori, dan stok.</p>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t("produk.title")}</h1>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t("produk.subtitle")}</p>
 
       {/* Form */}
-      <form onSubmit={saveProduct} className="mt-6 rounded-xl border border-slate-200 bg-white p-5">
+      <form onSubmit={saveProduct} className="mt-6 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Nama produk</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">{t("produk.nameLabel")}</label>
             <input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              placeholder="Kopi Susu"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              placeholder={t("produk.namePlaceholder")}
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Harga jual (Rp)</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">{t("produk.priceLabel")}</label>
             <input
               type="number"
               min="0"
               value={form.price}
               onChange={(e) => setForm({ ...form, price: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              placeholder="18000"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              placeholder={t("produk.pricePlaceholder")}
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Harga modal (Rp)</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">{t("produk.costLabel")}</label>
             <input
               type="number"
               min="0"
               value={form.cost}
               onChange={(e) => setForm({ ...form, cost: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              placeholder="12000"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              placeholder={t("produk.costPlaceholder")}
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Kategori</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">{t("produk.categoryLabel")}</label>
             <select
               value={form.category_id}
               onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             >
-              <option value="">Tanpa kategori</option>
+              <option value="">{t("produk.noCategory")}</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -175,24 +177,24 @@ export default function ProdukPage() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Barcode (opsional)</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">{t("produk.barcodeLabel")}</label>
             <input
               value={form.barcode}
               onChange={(e) => setForm({ ...form, barcode: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              placeholder="Scan atau ketik kode"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              placeholder={t("produk.barcodePlaceholder")}
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Stok</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">{t("produk.stockLabel")}</label>
             <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1.5 text-sm text-slate-600">
+              <label className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300">
                 <input
                   type="checkbox"
                   checked={form.track}
                   onChange={(e) => setForm({ ...form, track: e.target.checked })}
                 />
-                Lacak
+                {t("produk.track")}
               </label>
               <input
                 type="number"
@@ -200,8 +202,8 @@ export default function ProdukPage() {
                 disabled={!form.track}
                 value={form.stock}
                 onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
-                placeholder="Jumlah"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:disabled:bg-slate-900"
+                placeholder={t("produk.stockPlaceholder")}
               />
             </div>
           </div>
@@ -212,25 +214,25 @@ export default function ProdukPage() {
             type="submit"
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
           >
-            {form.id ? "Simpan perubahan" : "Tambah produk"}
+            {form.id ? t("produk.saveChanges") : t("produk.add")}
           </button>
           {form.id && (
             <button
               type="button"
               onClick={() => setForm(emptyForm)}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
             >
-              Batal
+              {t("produk.cancel")}
             </button>
           )}
         </div>
       </form>
 
       {/* Tambah kategori */}
-      <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-4">
-        <span className="text-sm font-medium text-slate-700">Kategori:</span>
+      <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t("produk.categoriesLabel")}</span>
         {categories.map((c) => (
-          <span key={c.id} className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
+          <span key={c.id} className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
             {c.name}
           </span>
         ))}
@@ -238,62 +240,62 @@ export default function ProdukPage() {
           <input
             value={newCat}
             onChange={(e) => setNewCat(e.target.value)}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
-            placeholder="Kategori baru"
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            placeholder={t("produk.newCategoryPlaceholder")}
           />
           <button
             onClick={addCategory}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
           >
-            Tambah
+            {t("produk.addCategory")}
           </button>
         </div>
       </div>
 
       {/* Daftar produk */}
-      <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
             <tr>
-              <th className="px-4 py-3">Nama</th>
-              <th className="px-4 py-3">Kategori</th>
-              <th className="px-4 py-3 text-right">Harga</th>
-              <th className="px-4 py-3 text-right">Stok</th>
+              <th className="px-4 py-3">{t("produk.colName")}</th>
+              <th className="px-4 py-3">{t("produk.colCategory")}</th>
+              <th className="px-4 py-3 text-right">{t("produk.colPrice")}</th>
+              <th className="px-4 py-3 text-right">{t("produk.colStock")}</th>
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {loading ? (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
-                  Memuat...
+                  {t("produk.loading")}
                 </td>
               </tr>
             ) : products.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
-                  Belum ada produk. Tambahkan lewat form di atas.
+                  {t("produk.empty")}
                 </td>
               </tr>
             ) : (
               products.map((p) => (
                 <tr key={p.id}>
-                  <td className="px-4 py-3 font-medium text-slate-800">{p.name}</td>
-                  <td className="px-4 py-3 text-slate-500">{catName(p.category_id)}</td>
-                  <td className="px-4 py-3 text-right">{rupiah(p.price)}</td>
+                  <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{p.name}</td>
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{catName(p.category_id)}</td>
+                  <td className="px-4 py-3 text-right dark:text-slate-200">{rupiah(p.price)}</td>
                   <td className="px-4 py-3 text-right">
                     {p.stock == null ? (
                       <span className="text-slate-400">—</span>
                     ) : p.stock <= 0 ? (
-                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                        Habis
+                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950 dark:text-red-300">
+                        {t("produk.stockOut")}
                       </span>
                     ) : p.stock <= p.low_stock_threshold ? (
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                        {p.stock} (menipis)
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                        {t("produk.stockLow").replace("{n}", String(p.stock))}
                       </span>
                     ) : (
-                      <span className="text-slate-600">{p.stock}</span>
+                      <span className="text-slate-600 dark:text-slate-300">{p.stock}</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -301,13 +303,13 @@ export default function ProdukPage() {
                       onClick={() => editProduct(p)}
                       className="text-brand-700 hover:underline"
                     >
-                      Ubah
+                      {t("produk.edit")}
                     </button>
                     <button
                       onClick={() => removeProduct(p.id)}
                       className="ml-3 text-red-600 hover:underline"
                     >
-                      Hapus
+                      {t("produk.delete")}
                     </button>
                   </td>
                 </tr>

@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useApp } from "@/lib/i18n/provider";
 import type { Product } from "@/lib/types";
 
 export default function OpnamePage() {
+  const { t } = useApp();
   const supabase = createClient();
   const [products, setProducts] = useState<Product[]>([]);
   const [physical, setPhysical] = useState<Record<string, string>>({});
@@ -39,51 +41,51 @@ export default function OpnamePage() {
     }
     setSaving(false);
     setPhysical({});
-    setMsg(`${updates.length} produk disesuaikan.`);
+    setMsg(`${updates.length} ${t("opname.adjusted")}`);
     load();
   }
 
-  if (loading) return <p className="text-center text-slate-400">Memuat...</p>;
+  if (loading) return <p className="text-center text-slate-400">{t("opname.loading")}</p>;
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="text-2xl font-bold text-slate-900">Stok opname</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        Hitung fisik stok, masukkan jumlah nyata. Kosongkan yang tidak berubah.
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t("opname.title")}</h1>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        {t("opname.subtitle")}
       </p>
 
       {products.length === 0 ? (
-        <p className="mt-6 rounded-xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-400">
-          Tidak ada produk yang melacak stok.
+        <p className="mt-6 rounded-xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-400 dark:border-slate-700 dark:bg-slate-900">
+          {t("opname.empty")}
         </p>
       ) : (
         <>
-          <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+              <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                 <tr>
-                  <th className="px-4 py-3">Produk</th>
-                  <th className="px-4 py-3 text-right">Stok sistem</th>
-                  <th className="px-4 py-3 text-right">Stok fisik</th>
-                  <th className="px-4 py-3 text-right">Selisih</th>
+                  <th className="px-4 py-3">{t("opname.col.product")}</th>
+                  <th className="px-4 py-3 text-right">{t("opname.col.system")}</th>
+                  <th className="px-4 py-3 text-right">{t("opname.col.physical")}</th>
+                  <th className="px-4 py-3 text-right">{t("opname.col.diff")}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {products.map((p) => {
                   const val = physical[p.id];
                   const phys = val === "" || val === undefined ? null : parseInt(val, 10) || 0;
                   const diff = phys == null ? null : phys - (p.stock ?? 0);
                   return (
                     <tr key={p.id}>
-                      <td className="px-4 py-3 font-medium text-slate-800">{p.name}</td>
-                      <td className="px-4 py-3 text-right text-slate-500">{p.stock}</td>
+                      <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{p.name}</td>
+                      <td className="px-4 py-3 text-right text-slate-500 dark:text-slate-400">{p.stock}</td>
                       <td className="px-4 py-3 text-right">
                         <input
                           type="number"
                           min="0"
                           value={val ?? ""}
                           onChange={(e) => setPhysical({ ...physical, [p.id]: e.target.value })}
-                          className="w-24 rounded border border-slate-300 px-2 py-1 text-right text-sm"
+                          className="w-24 rounded border border-slate-300 px-2 py-1 text-right text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                           placeholder={String(p.stock)}
                         />
                       </td>
@@ -100,7 +102,7 @@ export default function OpnamePage() {
           <div className="mt-4 flex items-center gap-3">
             <button onClick={saveAll} disabled={saving}
               className="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60">
-              {saving ? "Menyimpan..." : "Simpan penyesuaian"}
+              {saving ? t("opname.saving") : t("opname.save")}
             </button>
             {msg && <span className="text-sm text-green-600">{msg}</span>}
           </div>

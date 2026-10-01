@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { rupiah, tanggal } from "@/lib/format";
+import { useApp } from "@/lib/i18n/provider";
 import type { Shift } from "@/lib/types";
 
 export default function ShiftPage() {
+  const { t } = useApp();
   const supabase = createClient();
   const [active, setActive] = useState<Shift | null>(null);
   const [history, setHistory] = useState<Shift[]>([]);
@@ -59,7 +61,7 @@ export default function ShiftPage() {
       opening_cash: parseFloat(opening) || 0,
     });
     if (error) {
-      alert("Gagal: " + error.message);
+      alert(t("shift.failed") + error.message);
       return;
     }
     setOpening("");
@@ -78,86 +80,87 @@ export default function ShiftPage() {
       })
       .eq("id", active.id);
     if (error) {
-      alert("Gagal: " + error.message);
+      alert(t("shift.failed") + error.message);
       return;
     }
     setClosing("");
     load();
   }
 
-  if (loading) return <p className="text-center text-slate-400">Memuat...</p>;
+  if (loading) return <p className="text-center text-slate-400">{t("shift.loading")}</p>;
 
   const selisih = (parseFloat(closing) || 0) - expected;
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="text-2xl font-bold text-slate-900">Shift kasir</h1>
-      <p className="mt-1 text-sm text-slate-500">Buka dan tutup kas untuk mencatat uang laci.</p>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t("shift.title")}</h1>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t("shift.subtitle")}</p>
 
       {active ? (
-        <div className="mt-6 rounded-xl border border-brand-200 bg-brand-50 p-6">
-          <p className="text-sm font-medium text-brand-700">Shift sedang berjalan</p>
-          <p className="mt-1 text-xs text-slate-500">Dibuka {tanggal(active.opened_at)}</p>
+        <div className="mt-6 rounded-xl border border-brand-200 bg-brand-50 p-6 dark:border-slate-700 dark:bg-slate-800">
+          <p className="text-sm font-medium text-brand-700 dark:text-brand-100">{t("shift.running")}</p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t("shift.openedAt").replace("{n}", tanggal(active.opened_at))}</p>
           <div className="mt-4 space-y-1 text-sm">
-            <Row label="Kas awal" val={rupiah(active.opening_cash)} />
-            <Row label="Penjualan tunai" val={rupiah(expected - Number(active.opening_cash))} />
-            <Row label="Kas seharusnya" val={rupiah(expected)} strong />
+            <Row label={t("shift.openingCash")} val={rupiah(active.opening_cash)} />
+            <Row label={t("shift.cashSales")} val={rupiah(expected - Number(active.opening_cash))} />
+            <Row label={t("shift.expectedCash")} val={rupiah(expected)} strong />
           </div>
           <div className="mt-4">
-            <label className="mb-1 block text-sm font-medium text-slate-700">Kas akhir (hitung fisik)</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">{t("shift.closingCashLabel")}</label>
             <input type="number" min="0" value={closing} onChange={(e) => setClosing(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="0" />
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" placeholder="0" />
             {closing !== "" && (
               <p className={`mt-2 text-sm ${selisih === 0 ? "text-green-600" : "text-amber-600"}`}>
-                Selisih: {rupiah(selisih)} {selisih === 0 ? "(pas)" : selisih > 0 ? "(lebih)" : "(kurang)"}
+                {t("shift.diff").replace("{n}", rupiah(selisih))}
+                {selisih === 0 ? t("shift.diff.even") : selisih > 0 ? t("shift.diff.over") : t("shift.diff.under")}
               </p>
             )}
           </div>
           <button onClick={closeShift}
             className="mt-4 rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
-            Tutup shift
+            {t("shift.close")}
           </button>
         </div>
       ) : (
-        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-          <p className="text-sm text-slate-600">Belum ada shift berjalan.</p>
+        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
+          <p className="text-sm text-slate-600 dark:text-slate-300">{t("shift.noRunning")}</p>
           <div className="mt-4">
-            <label className="mb-1 block text-sm font-medium text-slate-700">Kas awal</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">{t("shift.openingCash")}</label>
             <input type="number" min="0" value={opening} onChange={(e) => setOpening(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="0" />
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" placeholder="0" />
           </div>
           <button onClick={openShift}
             className="mt-4 rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
-            Buka shift
+            {t("shift.open")}
           </button>
         </div>
       )}
 
       {/* Riwayat */}
-      <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
             <tr>
-              <th className="px-4 py-3">Dibuka</th>
-              <th className="px-4 py-3">Ditutup</th>
-              <th className="px-4 py-3 text-right">Kas awal</th>
-              <th className="px-4 py-3 text-right">Kas akhir</th>
-              <th className="px-4 py-3 text-right">Selisih</th>
+              <th className="px-4 py-3">{t("shift.col.opened")}</th>
+              <th className="px-4 py-3">{t("shift.col.closed")}</th>
+              <th className="px-4 py-3 text-right">{t("shift.col.openingCash")}</th>
+              <th className="px-4 py-3 text-right">{t("shift.col.closingCash")}</th>
+              <th className="px-4 py-3 text-right">{t("shift.col.diff")}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {history.filter((s) => s.closed_at).length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">Belum ada riwayat shift.</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">{t("shift.noHistory")}</td></tr>
             ) : (
               history.filter((s) => s.closed_at).map((s) => {
                 const sel = (Number(s.closing_cash) || 0) - (Number(s.expected_cash) || 0);
                 return (
                   <tr key={s.id}>
-                    <td className="px-4 py-3 text-slate-600">{tanggal(s.opened_at)}</td>
-                    <td className="px-4 py-3 text-slate-600">{s.closed_at ? tanggal(s.closed_at) : "-"}</td>
-                    <td className="px-4 py-3 text-right">{rupiah(s.opening_cash)}</td>
-                    <td className="px-4 py-3 text-right">{rupiah(s.closing_cash ?? 0)}</td>
-                    <td className={`px-4 py-3 text-right ${sel === 0 ? "text-slate-500" : "text-amber-600"}`}>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{tanggal(s.opened_at)}</td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{s.closed_at ? tanggal(s.closed_at) : "-"}</td>
+                    <td className="px-4 py-3 text-right dark:text-slate-100">{rupiah(s.opening_cash)}</td>
+                    <td className="px-4 py-3 text-right dark:text-slate-100">{rupiah(s.closing_cash ?? 0)}</td>
+                    <td className={`px-4 py-3 text-right ${sel === 0 ? "text-slate-500 dark:text-slate-400" : "text-amber-600"}`}>
                       {rupiah(sel)}
                     </td>
                   </tr>
@@ -173,7 +176,7 @@ export default function ShiftPage() {
 
 function Row({ label, val, strong }: { label: string; val: string; strong?: boolean }) {
   return (
-    <div className={`flex justify-between ${strong ? "font-bold text-slate-900" : "text-slate-600"}`}>
+    <div className={`flex justify-between ${strong ? "font-bold text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-300"}`}>
       <span>{label}</span>
       <span>{val}</span>
     </div>

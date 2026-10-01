@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { rupiah, tanggal } from "@/lib/format";
+import { useApp } from "@/lib/i18n/provider";
 import type { Customer, Debt, Sale } from "@/lib/types";
 
 export default function PelangganPage() {
+  const { t } = useApp();
   const supabase = createClient();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
@@ -38,7 +40,7 @@ export default function PelangganPage() {
       .from("customers")
       .insert({ name: name.trim(), phone: phone.trim() || null });
     if (error) {
-      alert("Gagal: " + error.message);
+      alert(t("pelanggan.failed") + error.message);
       return;
     }
     setName("");
@@ -69,7 +71,7 @@ export default function PelangganPage() {
       .update({ paid: newPaid, status })
       .eq("id", debt.id);
     if (error) {
-      alert("Gagal: " + error.message);
+      alert(t("pelanggan.failed") + error.message);
       return;
     }
     await supabase.from("debt_payments").insert({ debt_id: debt.id, amount: pay });
@@ -77,33 +79,33 @@ export default function PelangganPage() {
     load();
   }
 
-  if (loading) return <p className="text-center text-slate-400">Memuat...</p>;
+  if (loading) return <p className="text-center text-slate-400">{t("pelanggan.loading")}</p>;
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="text-2xl font-bold text-slate-900">Pelanggan</h1>
-      <p className="mt-1 text-sm text-slate-500">Kelola pelanggan dan catatan kasbon (utang).</p>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t("pelanggan.title")}</h1>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t("pelanggan.subtitle")}</p>
 
-      <form onSubmit={addCustomer} className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-4">
+      <form onSubmit={addCustomer} className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
         <div className="flex-1">
-          <label className="mb-1 block text-xs font-medium text-slate-600">Nama</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">{t("pelanggan.name")}</label>
           <input value={name} onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Nama pelanggan" />
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" placeholder={t("pelanggan.name.placeholder")} />
         </div>
         <div className="flex-1">
-          <label className="mb-1 block text-xs font-medium text-slate-600">Telepon</label>
+          <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300">{t("pelanggan.phone")}</label>
           <input value={phone} onChange={(e) => setPhone(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="0812xxxx" />
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" placeholder={t("pelanggan.phone.placeholder")} />
         </div>
         <button type="submit" className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">
-          Tambah
+          {t("pelanggan.add")}
         </button>
       </form>
 
       <div className="mt-6 space-y-3">
         {customers.length === 0 ? (
-          <p className="rounded-xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-400">
-            Belum ada pelanggan.
+          <p className="rounded-xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-400 dark:border-slate-700 dark:bg-slate-900">
+            {t("pelanggan.empty")}
           </p>
         ) : (
           customers.map((c) => {
@@ -111,7 +113,7 @@ export default function PelangganPage() {
             const list = debtsOf(c.id);
             const isOpen = openId === c.id;
             return (
-              <div key={c.id} className="rounded-xl border border-slate-200 bg-white">
+              <div key={c.id} className="rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
                 <button
                   onClick={async () => {
                     const nextOpen = isOpen ? null : c.id;
@@ -129,45 +131,45 @@ export default function PelangganPage() {
                   className="flex w-full items-center justify-between px-5 py-4 text-left"
                 >
                   <div>
-                    <p className="font-medium text-slate-800">{c.name}</p>
-                    {c.phone && <p className="text-xs text-slate-500">{c.phone}</p>}
+                    <p className="font-medium text-slate-800 dark:text-slate-100">{c.name}</p>
+                    {c.phone && <p className="text-xs text-slate-500 dark:text-slate-400">{c.phone}</p>}
                   </div>
                   <div className="text-right">
                     {owe > 0 ? (
                       <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
-                        Utang {rupiah(owe)}
+                        {t("pelanggan.debt").replace("{n}", rupiah(owe))}
                       </span>
                     ) : (
                       <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                        Lunas
+                        {t("pelanggan.paidOff")}
                       </span>
                     )}
                   </div>
                 </button>
 
                 {isOpen && (
-                  <div className="border-t border-slate-100 px-5 py-4">
-                    <p className="mb-3 text-sm text-slate-600">
-                      Saldo poin: <strong className="text-brand-700">{c.points}</strong>
+                  <div className="border-t border-slate-100 px-5 py-4 dark:border-slate-800">
+                    <p className="mb-3 text-sm text-slate-600 dark:text-slate-300">
+                      {t("pelanggan.points")}<strong className="text-brand-700">{c.points}</strong>
                     </p>
 
-                    <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Kasbon</h4>
+                    <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{t("pelanggan.debtHeading")}</h4>
                     {list.length === 0 ? (
-                      <p className="text-sm text-slate-400">Belum ada kasbon.</p>
+                      <p className="text-sm text-slate-400">{t("pelanggan.noDebt")}</p>
                     ) : (
                       <ul className="space-y-3">
                         {list.map((d) => {
                           const remaining = Number(d.amount) - Number(d.paid);
                           return (
-                            <li key={d.id} className="rounded-lg bg-slate-50 p-3 text-sm">
+                            <li key={d.id} className="rounded-lg bg-slate-50 p-3 text-sm dark:bg-slate-800">
                               <div className="flex justify-between">
-                                <span className="text-slate-500">{tanggal(d.created_at)}</span>
+                                <span className="text-slate-500 dark:text-slate-400">{tanggal(d.created_at)}</span>
                                 <span className={d.status === "paid" ? "text-green-600" : "text-red-600"}>
-                                  {d.status === "paid" ? "Lunas" : "Sisa " + rupiah(remaining)}
+                                  {d.status === "paid" ? t("pelanggan.paidOff") : t("pelanggan.remaining").replace("{n}", rupiah(remaining))}
                                 </span>
                               </div>
-                              <div className="mt-1 text-slate-600">
-                                Total {rupiah(d.amount)} · Dibayar {rupiah(d.paid)}
+                              <div className="mt-1 text-slate-600 dark:text-slate-300">
+                                {t("pelanggan.totalPaid").replace("{total}", rupiah(d.amount)).replace("{paid}", rupiah(d.paid))}
                               </div>
                               {d.status === "open" && (
                                 <div className="mt-2 flex gap-2">
@@ -176,14 +178,14 @@ export default function PelangganPage() {
                                     min="0"
                                     value={payAmount[d.id] ?? ""}
                                     onChange={(e) => setPayAmount({ ...payAmount, [d.id]: e.target.value })}
-                                    className="w-full rounded border border-slate-300 px-2 py-1 text-sm"
-                                    placeholder="Nominal bayar"
+                                    className="w-full rounded border border-slate-300 px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                    placeholder={t("pelanggan.payAmount")}
                                   />
                                   <button
                                     onClick={() => payDebt(d)}
                                     className="shrink-0 rounded bg-brand-600 px-3 py-1 text-sm font-semibold text-white hover:bg-brand-700"
                                   >
-                                    Bayar
+                                    {t("pelanggan.pay")}
                                   </button>
                                 </div>
                               )}
@@ -193,17 +195,17 @@ export default function PelangganPage() {
                       </ul>
                     )}
 
-                    <h4 className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-slate-500">Riwayat pembelian</h4>
+                    <h4 className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{t("pelanggan.historyHeading")}</h4>
                     {!purchases[c.id] ? (
-                      <p className="text-sm text-slate-400">Memuat...</p>
+                      <p className="text-sm text-slate-400">{t("pelanggan.loading")}</p>
                     ) : purchases[c.id].length === 0 ? (
-                      <p className="text-sm text-slate-400">Belum ada pembelian.</p>
+                      <p className="text-sm text-slate-400">{t("pelanggan.noPurchase")}</p>
                     ) : (
                       <ul className="space-y-1 text-sm">
                         {purchases[c.id].map((s) => (
                           <li key={s.id} className="flex justify-between">
-                            <span className="text-slate-500">{tanggal(s.created_at)}</span>
-                            <span className="font-medium text-slate-800">{rupiah(s.total)}</span>
+                            <span className="text-slate-500 dark:text-slate-400">{tanggal(s.created_at)}</span>
+                            <span className="font-medium text-slate-800 dark:text-slate-100">{rupiah(s.total)}</span>
                           </li>
                         ))}
                       </ul>

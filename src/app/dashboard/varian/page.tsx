@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { rupiah } from "@/lib/format";
+import { useApp } from "@/lib/i18n/provider";
 import type { Product, ProductVariant } from "@/lib/types";
 
 export default function VarianPage() {
   const supabase = createClient();
+  const { t } = useApp();
   const [products, setProducts] = useState<Product[]>([]);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [productId, setProductId] = useState("");
@@ -34,15 +36,15 @@ export default function VarianPage() {
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
-    if (!productId) return alert("Pilih produk dulu.");
-    if (!name.trim()) return alert("Isi nama varian.");
+    if (!productId) return alert(t("varian.alertPickProduct"));
+    if (!name.trim()) return alert(t("varian.alertName"));
     const { error } = await supabase.from("product_variants").insert({
       product_id: productId,
       name: name.trim(),
       price: parseFloat(price) || 0,
       stock: track ? parseInt(stock, 10) || 0 : null,
     });
-    if (error) return alert("Gagal: " + error.message);
+    if (error) return alert(t("varian.alertFailed") + error.message);
     setName("");
     setPrice("");
     setStock("");
@@ -50,7 +52,7 @@ export default function VarianPage() {
   }
 
   async function remove(id: string) {
-    if (!confirm("Hapus varian ini?")) return;
+    if (!confirm(t("varian.confirmDelete"))) return;
     await supabase.from("product_variants").delete().eq("id", id);
     load();
   }
@@ -58,73 +60,73 @@ export default function VarianPage() {
   const forProduct = variants.filter((v) => v.product_id === productId);
   const productName = (id: string) => products.find((p) => p.id === id)?.name ?? "—";
 
-  if (loading) return <p className="text-center text-slate-400">Memuat...</p>;
+  if (loading) return <p className="text-center text-slate-400 dark:text-slate-400">{t("varian.loading")}</p>;
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="text-2xl font-bold text-slate-900">Varian produk</h1>
-      <p className="mt-1 text-sm text-slate-500">Ukuran, warna, atau tipe dengan harga/stok berbeda.</p>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t("varian.title")}</h1>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t("varian.subtitle")}</p>
 
       <div className="mt-6">
-        <label className="mb-1 block text-sm font-medium text-slate-700">Pilih produk</label>
+        <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">{t("varian.pickProduct")}</label>
         <select value={productId} onChange={(e) => setProductId(e.target.value)}
-          className="w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm">
-          <option value="">Pilih produk...</option>
+          className="w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+          <option value="">{t("varian.pickProductPlaceholder")}</option>
           {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </div>
 
       {productId && (
         <>
-          <form onSubmit={add} className="mt-6 grid gap-4 rounded-xl border border-slate-200 bg-white p-5 sm:grid-cols-2">
+          <form onSubmit={add} className="mt-6 grid gap-4 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Nama varian</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">{t("varian.name")}</label>
               <input value={name} onChange={(e) => setName(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="M / Merah" />
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" placeholder={t("varian.namePlaceholder")} />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Harga (Rp)</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">{t("varian.price")}</label>
               <input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="0" />
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" placeholder="0" />
             </div>
             <div className="sm:col-span-2">
-              <label className="flex items-center gap-2 text-sm text-slate-600">
+              <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                 <input type="checkbox" checked={track} onChange={(e) => setTrack(e.target.checked)} />
-                Lacak stok varian
+                {t("varian.trackStock")}
               </label>
               {track && (
                 <input type="number" min="0" value={stock} onChange={(e) => setStock(e.target.value)}
-                  className="mt-2 w-40 rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Jumlah stok" />
+                  className="mt-2 w-40 rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" placeholder={t("varian.stockPlaceholder")} />
               )}
             </div>
             <div className="sm:col-span-2">
               <button type="submit" className="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
-                Tambah varian
+                {t("varian.add")}
               </button>
             </div>
           </form>
 
-          <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+              <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                 <tr>
-                  <th className="px-4 py-3">Varian {productName(productId)}</th>
-                  <th className="px-4 py-3 text-right">Harga</th>
-                  <th className="px-4 py-3 text-right">Stok</th>
+                  <th className="px-4 py-3">{t("varian.colVariant")} {productName(productId)}</th>
+                  <th className="px-4 py-3 text-right">{t("varian.colPrice")}</th>
+                  <th className="px-4 py-3 text-right">{t("varian.colStock")}</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {forProduct.length === 0 ? (
-                  <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400">Belum ada varian.</td></tr>
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400 dark:text-slate-400">{t("varian.empty")}</td></tr>
                 ) : (
                   forProduct.map((v) => (
                     <tr key={v.id}>
-                      <td className="px-4 py-3 font-medium text-slate-800">{v.name}</td>
-                      <td className="px-4 py-3 text-right">{rupiah(v.price)}</td>
-                      <td className="px-4 py-3 text-right text-slate-500">{v.stock == null ? "—" : v.stock}</td>
+                      <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-100">{v.name}</td>
+                      <td className="px-4 py-3 text-right dark:text-slate-200">{rupiah(v.price)}</td>
+                      <td className="px-4 py-3 text-right text-slate-500 dark:text-slate-400">{v.stock == null ? "—" : v.stock}</td>
                       <td className="px-4 py-3 text-right">
-                        <button onClick={() => remove(v.id)} className="text-red-600 hover:underline">Hapus</button>
+                        <button onClick={() => remove(v.id)} className="text-red-600 hover:underline dark:text-red-400">{t("varian.delete")}</button>
                       </td>
                     </tr>
                   ))

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
 import { rupiah, roundTo } from "@/lib/format";
+import { useApp } from "@/lib/i18n/provider";
 
 const BarcodeScanner = dynamic(() => import("@/components/BarcodeScanner"), { ssr: false });
 import { enqueue, loadQueue, clearQueue } from "@/lib/offline";
@@ -17,6 +18,7 @@ const OUTLET_KEY = "pos_active_outlet";
 type Parked = { id: string; label: string; cart: CartLine[] };
 
 export default function KasirPage() {
+  const { t } = useApp();
   const supabase = createClient();
   const [products, setProducts] = useState<Product[]>([]);
   const [bundles, setBundles] = useState<Bundle[]>([]);
@@ -332,7 +334,7 @@ export default function KasirPage() {
       .maybeSingle()
       .then(({ data }) => {
         if (data) setVoucher(data as Voucher);
-        else alert("Voucher tidak ditemukan atau nonaktif.");
+        else alert(t("kasir.voucherNotFound"));
       });
   }
 
@@ -375,15 +377,15 @@ export default function KasirPage() {
   async function checkout() {
     if (cart.length === 0) return;
     if (method === "cash" && paidNum < cashTotal) {
-      alert("Nominal bayar kurang dari total.");
+      alert(t("kasir.errPaidLess"));
       return;
     }
     if (method === "split" && splitSum < total) {
-      alert(`Total bayar (${rupiah(splitSum)}) kurang dari ${rupiah(total)}.`);
+      alert(t("kasir.errSplitLess").replace("{paid}", rupiah(splitSum)).replace("{total}", rupiah(total)));
       return;
     }
     if (method === "debt" && !customerId) {
-      alert("Pilih pelanggan dulu untuk transaksi kasbon.");
+      alert(t("kasir.errPickCustomerDebt"));
       return;
     }
     setSaving(true);
@@ -467,7 +469,7 @@ export default function KasirPage() {
       setPendingSync(loadQueue().length);
       setSaving(false);
       resetCart();
-      setDone("Offline. Transaksi diantre, terkirim otomatis saat online.");
+      setDone(t("kasir.doneOffline"));
       return;
     }
 
@@ -475,7 +477,7 @@ export default function KasirPage() {
     const { error: itemErr } = await supabase.from("sale_items").insert(items);
     if (itemErr) {
       setSaving(false);
-      alert("Transaksi tersimpan tapi item gagal: " + itemErr.message);
+      alert(t("kasir.errItemFailed").replace("{msg}", itemErr.message));
       return;
     }
 
@@ -508,9 +510,9 @@ export default function KasirPage() {
     resetCart();
     setDone(
       isDebt
-        ? "Kasbon tercatat. Total utang " + rupiah(total) + "."
-        : `Transaksi tersimpan. Kembalian ${rupiah(Math.max(change, 0))}.` +
-          (pointsEarned > 0 ? ` +${pointsEarned} poin.` : "")
+        ? t("kasir.doneDebt").replace("{total}", rupiah(total))
+        : t("kasir.doneSaved").replace("{change}", rupiah(Math.max(change, 0))) +
+          (pointsEarned > 0 ? t("kasir.donePoints").replace("{n}", String(pointsEarned)) : "")
     );
     load();
   }
@@ -520,51 +522,51 @@ export default function KasirPage() {
       {/* Katalog */}
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold text-slate-900">Kasir</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t("kasir.title")}</h1>
           {outlets.length > 0 && (
             <select value={outletId} onChange={(e) => saveOutlet(e.target.value)}
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm">
-              <option value="">Semua outlet</option>
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+              <option value="">{t("kasir.allOutlets")}</option>
               {outlets.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
             </select>
           )}
         </div>
         {pendingSync > 0 && (
-          <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-            {pendingSync} transaksi menunggu sinkronisasi (offline).
+          <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+            {t("kasir.pendingSync").replace("{n}", String(pendingSync))}
           </p>
         )}
         <div className="mt-3 flex gap-2">
           <input
             value={query}
             onChange={(e) => onScanInput(e.target.value)}
-            placeholder="Cari produk atau scan barcode..."
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            placeholder={t("kasir.searchPlaceholder")}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
           />
           <button onClick={() => setScanning(true)}
-            className="shrink-0 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
-            title="Scan pakai kamera">
-            📷 Scan
+            className="shrink-0 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            title={t("kasir.scanTitle")}>
+            {t("kasir.scan")}
           </button>
         </div>
         {scanning && <BarcodeScanner onDetected={onCameraDetect} onClose={() => setScanning(false)} />}
         {variantPick && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setVariantPick(null)}>
-            <div className="w-full max-w-sm rounded-xl bg-white p-5" onClick={(e) => e.stopPropagation()}>
-              <h3 className="font-semibold text-slate-900">Pilih varian — {variantPick.name}</h3>
+            <div className="w-full max-w-sm rounded-xl bg-white p-5 dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
+              <h3 className="font-semibold text-slate-900 dark:text-white">{t("kasir.pickVariant").replace("{name}", variantPick.name)}</h3>
               <div className="mt-4 grid gap-2">
                 {variants.filter((v) => v.product_id === variantPick.id).map((v) => {
                   const out = v.stock != null && v.stock <= 0;
                   return (
                     <button key={v.id} onClick={() => addVariant(variantPick, v)} disabled={out}
-                      className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-2 text-left hover:border-brand-400 disabled:opacity-50">
-                      <span className="text-sm font-medium text-slate-800">{v.name}</span>
-                      <span className="text-sm text-brand-700">{rupiah(v.price)}{out ? " (habis)" : ""}</span>
+                      className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-2 text-left hover:border-brand-400 disabled:opacity-50 dark:border-slate-700">
+                      <span className="text-sm font-medium text-slate-800 dark:text-slate-100">{v.name}</span>
+                      <span className="text-sm text-brand-700">{rupiah(v.price)}{out ? t("kasir.soldOut") : ""}</span>
                     </button>
                   );
                 })}
               </div>
-              <button onClick={() => setVariantPick(null)} className="mt-4 w-full rounded-lg border border-slate-300 py-2 text-sm text-slate-600">Batal</button>
+              <button onClick={() => setVariantPick(null)} className="mt-4 w-full rounded-lg border border-slate-300 py-2 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-300">{t("kasir.cancel")}</button>
             </div>
           </div>
         )}
@@ -573,9 +575,9 @@ export default function KasirPage() {
         {parked.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {parked.map((p) => (
-              <div key={p.id} className="flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs">
-                <button onClick={() => resumeParked(p)} className="font-medium text-slate-700">
-                  Tahan {p.label} ({p.cart.length})
+              <div key={p.id} className="flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs dark:bg-slate-800">
+                <button onClick={() => resumeParked(p)} className="font-medium text-slate-700 dark:text-slate-300">
+                  {t("kasir.parked").replace("{label}", p.label).replace("{n}", String(p.cart.length))}
                 </button>
                 <button onClick={() => removeParked(p.id)} className="text-red-500">×</button>
               </div>
@@ -584,9 +586,9 @@ export default function KasirPage() {
         )}
 
         {loading ? (
-          <p className="mt-8 text-center text-slate-400">Memuat produk...</p>
+          <p className="mt-8 text-center text-slate-400">{t("kasir.loadingProducts")}</p>
         ) : filtered.length === 0 ? (
-          <p className="mt-8 text-center text-slate-400">Tidak ada produk. Tambahkan di menu Produk dulu.</p>
+          <p className="mt-8 text-center text-slate-400">{t("kasir.noProducts")}</p>
         ) : (
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
             {filtered.map((p) => {
@@ -596,13 +598,13 @@ export default function KasirPage() {
               const low = tracked && st > 0 && st <= p.low_stock_threshold;
               return (
                 <button key={p.id} onClick={() => addToCart(p)} disabled={out}
-                  className="rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-brand-400 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50">
-                  <p className="font-medium text-slate-800">{p.name}</p>
+                  className="rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-brand-400 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900">
+                  <p className="font-medium text-slate-800 dark:text-slate-100">{p.name}</p>
                   <p className="mt-1 text-sm text-brand-700">{rupiah(p.price)}</p>
                   {tracked && (
                     <p className={`mt-1 text-xs ${out ? "text-red-600" : low ? "text-amber-600" : "text-slate-400"}`}>
-                      {out ? "Stok habis" : low ? `Stok menipis: ${st}` : `Stok: ${st}`}
-                      {outletId && !isOutletEntry(p) && <span className="text-slate-400"> (global)</span>}
+                      {out ? t("kasir.stockOut") : low ? t("kasir.stockLow").replace("{n}", String(st)) : t("kasir.stock").replace("{n}", String(st))}
+                      {outletId && !isOutletEntry(p) && <span className="text-slate-400">{t("kasir.global")}</span>}
                     </p>
                   )}
                 </button>
@@ -614,14 +616,14 @@ export default function KasirPage() {
         {/* Paket / bundle */}
         {bundles.length > 0 && (
           <>
-            <h2 className="mt-6 text-sm font-semibold text-slate-500">Paket</h2>
+            <h2 className="mt-6 text-sm font-semibold text-slate-500 dark:text-slate-400">{t("kasir.bundles")}</h2>
             <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
               {bundles.map((b) => (
                 <button key={b.id} onClick={() => addBundle(b)}
-                  className="rounded-xl border border-brand-200 bg-brand-50 p-4 text-left hover:border-brand-400 hover:shadow-sm">
-                  <p className="font-medium text-slate-800">{b.name}</p>
+                  className="rounded-xl border border-brand-200 bg-brand-50 p-4 text-left hover:border-brand-400 hover:shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                  <p className="font-medium text-slate-800 dark:text-slate-100">{b.name}</p>
                   <p className="mt-1 text-sm text-brand-700">{rupiah(b.price)}</p>
-                  <p className="mt-1 text-xs text-brand-600">Paket</p>
+                  <p className="mt-1 text-xs text-brand-600 dark:text-brand-100">{t("kasir.bundleTag")}</p>
                 </button>
               ))}
             </div>
@@ -630,17 +632,17 @@ export default function KasirPage() {
       </div>
 
       {/* Keranjang */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5">
+      <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-slate-900">Keranjang</h2>
+          <h2 className="font-semibold text-slate-900 dark:text-white">{t("kasir.cart")}</h2>
           {cart.length > 0 && (
             <button onClick={parkCart} className="text-xs font-medium text-brand-700 hover:underline">
-              Tahan
+              {t("kasir.hold")}
             </button>
           )}
         </div>
         {cart.length === 0 ? (
-          <p className="mt-4 text-sm text-slate-400">Belum ada item.</p>
+          <p className="mt-4 text-sm text-slate-400">{t("kasir.cartEmpty")}</p>
         ) : (
           <ul className="mt-4 space-y-3">
             {cart.map((l) => {
@@ -649,22 +651,22 @@ export default function KasirPage() {
                 <li key={key} className="space-y-1">
                   <div className="flex items-center gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-slate-800">
+                      <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">
                         {l.name}
-                        {l.product_id === null && <span className="ml-1 text-xs text-brand-600">(paket)</span>}
+                        {l.product_id === null && <span className="ml-1 text-xs text-brand-600">{t("kasir.bundleLine")}</span>}
                       </p>
-                      <p className="text-xs text-slate-500">{rupiah(l.price)}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{rupiah(l.price)}</p>
                     </div>
                     <div className="flex items-center gap-1">
-                      <button onClick={() => setQty(key, l.qty - 1)} className="h-7 w-7 rounded border border-slate-300 text-slate-600">−</button>
-                      <span className="w-7 text-center text-sm">{l.qty}</span>
-                      <button onClick={() => setQty(key, l.qty + 1)} className="h-7 w-7 rounded border border-slate-300 text-slate-600">+</button>
+                      <button onClick={() => setQty(key, l.qty - 1)} className="h-7 w-7 rounded border border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300">−</button>
+                      <span className="w-7 text-center text-sm dark:text-slate-200">{l.qty}</span>
+                      <button onClick={() => setQty(key, l.qty + 1)} className="h-7 w-7 rounded border border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300">+</button>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 pl-1">
-                    <span className="text-xs text-slate-400">Diskon item</span>
+                    <span className="text-xs text-slate-400">{t("kasir.itemDiscount")}</span>
                     <input type="number" min="0" value={l.discount || ""} onChange={(e) => setLineDiscount(key, parseFloat(e.target.value) || 0)}
-                      className="w-24 rounded border border-slate-200 px-2 py-0.5 text-right text-xs" placeholder="0" />
+                      className="w-24 rounded border border-slate-200 px-2 py-0.5 text-right text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white" placeholder="0" />
                   </div>
                 </li>
               );
@@ -672,33 +674,33 @@ export default function KasirPage() {
           </ul>
         )}
 
-        <div className="mt-5 space-y-2 border-t border-slate-100 pt-4 text-sm">
+        <div className="mt-5 space-y-2 border-t border-slate-100 pt-4 text-sm dark:border-slate-800 dark:text-slate-200">
           <div className="flex justify-between">
-            <span className="text-slate-500">Subtotal</span>
+            <span className="text-slate-500 dark:text-slate-400">{t("kasir.subtotal")}</span>
             <span>{rupiah(subtotal)}</span>
           </div>
 
           {/* Diskon transaksi */}
           <div className="flex items-center justify-between gap-2">
-            <span className="text-slate-500">Diskon</span>
+            <span className="text-slate-500 dark:text-slate-400">{t("kasir.discount")}</span>
             <div className="flex items-center gap-1">
               <select value={discountMode} onChange={(e) => setDiscountMode(e.target.value as "amount" | "percent")}
-                className="rounded border border-slate-300 px-1 py-1 text-xs">
+                className="rounded border border-slate-300 px-1 py-1 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white">
                 <option value="amount">Rp</option>
                 <option value="percent">%</option>
               </select>
               <input type="number" min="0" value={discount} onChange={(e) => setDiscount(e.target.value)}
-                className="w-20 rounded border border-slate-300 px-2 py-1 text-right" placeholder="0" />
+                className="w-20 rounded border border-slate-300 px-2 py-1 text-right dark:border-slate-700 dark:bg-slate-800 dark:text-white" placeholder="0" />
             </div>
           </div>
 
           {/* Voucher */}
           <div className="flex items-center justify-between gap-2">
-            <span className="text-slate-500">Voucher</span>
+            <span className="text-slate-500 dark:text-slate-400">{t("kasir.voucher")}</span>
             <div className="flex items-center gap-1">
               <input value={voucherCode} onChange={(e) => setVoucherCode(e.target.value)}
-                className="w-24 rounded border border-slate-300 px-2 py-1 text-xs uppercase" placeholder="KODE" />
-              <button onClick={applyVoucher} className="rounded bg-slate-100 px-2 py-1 text-xs font-medium">Pakai</button>
+                className="w-24 rounded border border-slate-300 px-2 py-1 text-xs uppercase dark:border-slate-700 dark:bg-slate-800 dark:text-white" placeholder={t("kasir.voucherPlaceholder")} />
+              <button onClick={applyVoucher} className="rounded bg-slate-100 px-2 py-1 text-xs font-medium dark:bg-slate-800 dark:text-slate-200">{t("kasir.apply")}</button>
             </div>
           </div>
           {voucher && <div className="flex justify-between text-xs text-green-600"><span>{voucher.code}</span><span>-{rupiah(voucherDisc)}</span></div>}
@@ -706,84 +708,84 @@ export default function KasirPage() {
           {/* Tebus poin */}
           {cust && cust.points > 0 && (
             <div className="flex items-center justify-between gap-2">
-              <span className="text-slate-500">Tebus poin ({cust.points})</span>
+              <span className="text-slate-500 dark:text-slate-400">{t("kasir.redeemPoints").replace("{points}", String(cust.points))}</span>
               <input type="number" min="0" max={cust.points} value={redeemPoints} onChange={(e) => setRedeemPoints(e.target.value)}
-                className="w-20 rounded border border-slate-300 px-2 py-1 text-right" placeholder="0" />
+                className="w-20 rounded border border-slate-300 px-2 py-1 text-right dark:border-slate-700 dark:bg-slate-800 dark:text-white" placeholder="0" />
             </div>
           )}
-          {redeemDisc > 0 && <div className="flex justify-between text-xs text-green-600"><span>Diskon poin</span><span>-{rupiah(redeemDisc)}</span></div>}
+          {redeemDisc > 0 && <div className="flex justify-between text-xs text-green-600"><span>{t("kasir.pointDiscount")}</span><span>-{rupiah(redeemDisc)}</span></div>}
 
-          {tax > 0 && <div className="flex justify-between"><span className="text-slate-500">Pajak ({taxPercent}%)</span><span>{rupiah(tax)}</span></div>}
-          {serviceCharge > 0 && <div className="flex justify-between"><span className="text-slate-500">Service ({scPercent}%)</span><span>{rupiah(serviceCharge)}</span></div>}
+          {tax > 0 && <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">{t("kasir.tax").replace("{percent}", String(taxPercent))}</span><span>{rupiah(tax)}</span></div>}
+          {serviceCharge > 0 && <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">{t("kasir.service").replace("{percent}", String(scPercent))}</span><span>{rupiah(serviceCharge)}</span></div>}
 
           {method === "cash" && roundingAdj !== 0 && (
             <div className="flex justify-between text-xs text-slate-400">
-              <span>Pembulatan</span>
+              <span>{t("kasir.rounding")}</span>
               <span>{roundingAdj > 0 ? "+" : ""}{rupiah(roundingAdj)}</span>
             </div>
           )}
-          <div className="flex justify-between border-t border-slate-100 pt-2 text-base font-bold">
-            <span>Total</span><span>{rupiah(method === "cash" ? cashTotal : total)}</span>
+          <div className="flex justify-between border-t border-slate-100 pt-2 text-base font-bold dark:border-slate-800">
+            <span>{t("kasir.total")}</span><span>{rupiah(method === "cash" ? cashTotal : total)}</span>
           </div>
           {customerId && pointsEarned > 0 && (
-            <p className="text-right text-xs text-brand-600">Dapat +{pointsEarned} poin</p>
+            <p className="text-right text-xs text-brand-600">{t("kasir.earnPoints").replace("{n}", String(pointsEarned))}</p>
           )}
         </div>
 
         <div className="mt-4 space-y-3">
           <select value={method} onChange={(e) => setMethod(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-            <option value="cash">Tunai</option>
-            <option value="qris">QRIS</option>
-            <option value="transfer">Transfer</option>
-            <option value="ewallet">E-wallet</option>
-            <option value="split">Bayar campuran (split)</option>
-            <option value="debt">Kasbon (utang)</option>
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+            <option value="cash">{t("kasir.methodCash")}</option>
+            <option value="qris">{t("kasir.methodQris")}</option>
+            <option value="transfer">{t("kasir.methodTransfer")}</option>
+            <option value="ewallet">{t("kasir.methodEwallet")}</option>
+            <option value="split">{t("kasir.methodSplit")}</option>
+            <option value="debt">{t("kasir.methodDebt")}</option>
           </select>
 
           {method === "split" && (
-            <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+            <div className="space-y-2 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
               <div className="flex items-center gap-2">
-                <span className="w-16 text-xs text-slate-500">Tunai</span>
+                <span className="w-16 text-xs text-slate-500 dark:text-slate-400">{t("kasir.splitCash")}</span>
                 <input type="number" min="0" value={splitCash} onChange={(e) => setSplitCash(e.target.value)}
-                  className="w-full rounded border border-slate-300 px-2 py-1 text-sm text-right" placeholder="0" />
+                  className="w-full rounded border border-slate-300 px-2 py-1 text-sm text-right dark:border-slate-700 dark:bg-slate-800 dark:text-white" placeholder="0" />
               </div>
               <div className="flex items-center gap-2">
                 <select value={splitNonMethod} onChange={(e) => setSplitNonMethod(e.target.value)}
-                  className="w-16 rounded border border-slate-300 px-1 py-1 text-xs">
-                  <option value="qris">QRIS</option>
-                  <option value="transfer">Transfer</option>
-                  <option value="ewallet">E-wallet</option>
+                  className="w-16 rounded border border-slate-300 px-1 py-1 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+                  <option value="qris">{t("kasir.methodQris")}</option>
+                  <option value="transfer">{t("kasir.methodTransfer")}</option>
+                  <option value="ewallet">{t("kasir.methodEwallet")}</option>
                 </select>
                 <input type="number" min="0" value={splitNon} onChange={(e) => setSplitNon(e.target.value)}
-                  className="w-full rounded border border-slate-300 px-2 py-1 text-sm text-right" placeholder="0" />
+                  className="w-full rounded border border-slate-300 px-2 py-1 text-sm text-right dark:border-slate-700 dark:bg-slate-800 dark:text-white" placeholder="0" />
               </div>
               <p className={`text-right text-xs ${splitSum >= total ? "text-green-600" : "text-amber-600"}`}>
-                Terbayar {rupiah(splitSum)} / {rupiah(total)}
+                {t("kasir.splitPaid").replace("{paid}", rupiah(splitSum)).replace("{total}", rupiah(total))}
               </p>
             </div>
           )}
 
           <select value={customerId} onChange={(e) => setCustomerId(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-            <option value="">Tanpa pelanggan</option>
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+            <option value="">{t("kasir.noCustomer")}</option>
             {customers.map((c) => (
-              <option key={c.id} value={c.id}>{c.name} ({c.points} poin)</option>
+              <option key={c.id} value={c.id}>{t("kasir.customerOption").replace("{name}", c.name).replace("{points}", String(c.points))}</option>
             ))}
           </select>
 
           {method === "cash" && (
             <div>
               <input type="number" min="0" value={paid} onChange={(e) => setPaid(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Nominal bayar" />
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" placeholder={t("kasir.paidPlaceholder")} />
               {paidNum > 0 && (
-                <p className="mt-1 text-right text-sm text-slate-500">Kembalian: {rupiah(Math.max(change, 0))}</p>
+                <p className="mt-1 text-right text-sm text-slate-500 dark:text-slate-400">{t("kasir.change").replace("{amount}", rupiah(Math.max(change, 0)))}</p>
               )}
             </div>
           )}
           <button onClick={checkout} disabled={cart.length === 0 || saving}
             className="w-full rounded-lg bg-brand-600 py-2.5 font-semibold text-white hover:bg-brand-700 disabled:opacity-50">
-            {saving ? "Menyimpan..." : "Bayar & simpan"}
+            {saving ? t("kasir.saving") : t("kasir.pay")}
           </button>
           {done && <p className="text-center text-sm text-green-600">{done}</p>}
         </div>

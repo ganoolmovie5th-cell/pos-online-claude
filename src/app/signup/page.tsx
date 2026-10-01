@@ -3,8 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useApp } from "@/lib/i18n/provider";
 
 export default function SignupPage() {
+  const { t } = useApp();
   const [businessName, setBusinessName] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -42,7 +44,7 @@ export default function SignupPage() {
     if (data.session) {
       window.location.assign("/dashboard");
     } else {
-      setMsg("Akun dibuat. Cek email untuk verifikasi, lalu masuk.");
+      setMsg(t("auth.signup.verifyMsg"));
     }
   }
 
@@ -50,67 +52,67 @@ export default function SignupPage() {
     <main className="flex min-h-screen items-center justify-center px-6 py-12">
       <div className="w-full max-w-sm">
         <Link href="/" className="mb-8 block text-center text-lg font-bold text-brand-700">
-          POS Online
+          {t("auth.brand")}
         </Link>
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-          <h1 className="text-xl font-bold text-slate-900">Buat akun bisnis</h1>
-          <p className="mt-1 text-sm text-slate-500">Gratis, langsung siap pakai.</p>
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">{t("auth.signup.title")}</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t("auth.signup.subtitle")}</p>
 
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">
-                Kode undangan <span className="font-normal text-slate-400">(kalau diundang staf)</span>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                {t("auth.signup.inviteLabel")} <span className="font-normal text-slate-400">{t("auth.signup.inviteHint")}</span>
               </label>
               <input
                 type="text"
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm uppercase focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                placeholder="Kosongkan kalau bikin bisnis baru"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm uppercase focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                placeholder={t("auth.signup.invitePlaceholder")}
               />
             </div>
             <div className={joining ? "hidden" : ""}>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Nama bisnis</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">{t("auth.signup.businessLabel")}</label>
               <input
                 type="text"
                 required={!joining}
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                placeholder="Kopi Senja"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                placeholder={t("auth.signup.businessPlaceholder")}
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Nama kamu</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">{t("auth.signup.nameLabel")}</label>
               <input
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                placeholder="Nama pemilik"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                placeholder={t("auth.signup.namePlaceholder")}
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Email</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">{t("auth.email")}</label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                placeholder="kamu@bisnis.com"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                placeholder={t("auth.emailPlaceholder")}
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Kata sandi</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">{t("auth.password")}</label>
               <input
                 type="password"
                 required
                 minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                placeholder="Minimal 6 karakter"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                placeholder={t("auth.passwordPlaceholder")}
               />
             </div>
             {err && <p className="text-sm text-red-600">{err}</p>}
@@ -120,14 +122,14 @@ export default function SignupPage() {
               disabled={loading}
               className="w-full rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-60"
             >
-              {loading ? "Memproses..." : "Daftar"}
+              {loading ? t("auth.signup.submitting") : t("auth.signup.submit")}
             </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-slate-500">
-            Sudah punya akun?{" "}
+          <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
+            {t("auth.signup.haveAccount")}{" "}
             <Link href="/login" className="font-semibold text-brand-700 hover:underline">
-              Masuk
+              {t("auth.signup.toLogin")}
             </Link>
           </p>
         </div>

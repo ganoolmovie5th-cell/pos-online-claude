@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { rupiah } from "@/lib/format";
+import { useApp } from "@/lib/i18n/provider";
 import type { Business, Product, Table, TableSession } from "@/lib/types";
 
 type SItem = { product_id: string | null; name: string; price: number; cost?: number; qty: number };
@@ -10,6 +11,7 @@ type SItem = { product_id: string | null; name: string; price: number; cost?: nu
 const OUTLET_KEY = "pos_active_outlet";
 
 export default function MejaPage() {
+  const { t } = useApp();
   const supabase = createClient();
   const [tables, setTables] = useState<Table[]>([]);
   const [sessions, setSessions] = useState<TableSession[]>([]);
@@ -49,7 +51,7 @@ export default function MejaPage() {
     const name = newTable.trim();
     if (!name) return;
     const { error } = await supabase.from("tables").insert({ name });
-    if (error) return alert("Gagal: " + error.message);
+    if (error) return alert(t("meja.error") + error.message);
     setNewTable("");
     load();
   }
@@ -58,7 +60,7 @@ export default function MejaPage() {
     const existing = sessionOf(table.id);
     if (!existing) {
       const { error } = await supabase.from("table_sessions").insert({ table_id: table.id, items: [] });
-      if (error) return alert("Gagal: " + error.message);
+      if (error) return alert(t("meja.error") + error.message);
       await load();
     }
     setActiveTable(table);
@@ -111,7 +113,7 @@ export default function MejaPage() {
 
     if (error || !sale) {
       setSaving(false);
-      return alert("Gagal bayar: " + (error?.message ?? ""));
+      return alert(t("meja.payError") + (error?.message ?? ""));
     }
 
     await supabase.from("sale_items").insert(
@@ -142,55 +144,55 @@ export default function MejaPage() {
     [products, query]
   );
 
-  if (loading) return <p className="text-center text-slate-400">Memuat...</p>;
+  if (loading) return <p className="text-center text-slate-400">{t("meja.loading")}</p>;
 
   return (
     <div className="mx-auto max-w-5xl">
-      <h1 className="text-2xl font-bold text-slate-900">Mode meja</h1>
-      <p className="mt-1 text-sm text-slate-500">Buka sesi per meja, tambah pesanan, bayar saat selesai.</p>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t("meja.title")}</h1>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t("meja.subtitle")}</p>
 
       {/* Tambah meja */}
       <div className="mt-4 flex gap-2">
         <input value={newTable} onChange={(e) => setNewTable(e.target.value)}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Nama meja (Meja 1)" />
-        <button onClick={addTable} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">
-          Tambah meja
+          className="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" placeholder={t("meja.add.placeholder")} />
+        <button onClick={addTable} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+          {t("meja.add.button")}
         </button>
       </div>
 
       {/* Grid meja */}
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {tables.map((t) => {
-          const sess = sessionOf(t.id);
+        {tables.map((tb) => {
+          const sess = sessionOf(tb.id);
           const total = sess ? ((sess.items as SItem[]) ?? []).reduce((s, i) => s + i.price * i.qty, 0) : 0;
           return (
-            <button key={t.id} onClick={() => openSession(t)}
-              className={`rounded-xl border p-4 text-left ${sess ? "border-brand-400 bg-brand-50" : "border-slate-200 bg-white"}`}>
-              <p className="font-semibold text-slate-800">{t.name}</p>
-              <p className={`mt-1 text-xs ${sess ? "text-brand-600" : "text-slate-400"}`}>
-                {sess ? `Terisi · ${rupiah(total)}` : "Kosong"}
+            <button key={tb.id} onClick={() => openSession(tb)}
+              className={`rounded-xl border p-4 text-left ${sess ? "border-brand-400 bg-brand-50 dark:bg-slate-800" : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"}`}>
+              <p className="font-semibold text-slate-800 dark:text-slate-100">{tb.name}</p>
+              <p className={`mt-1 text-xs ${sess ? "text-brand-600 dark:text-brand-100" : "text-slate-400"}`}>
+                {sess ? t("meja.status.filled").replace("{n}", rupiah(total)) : t("meja.status.empty")}
               </p>
             </button>
           );
         })}
-        {tables.length === 0 && <p className="text-sm text-slate-400">Belum ada meja.</p>}
+        {tables.length === 0 && <p className="text-sm text-slate-400">{t("meja.none")}</p>}
       </div>
 
       {/* Panel sesi meja aktif */}
       {activeTable && activeSession && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setActiveTable(null)}>
-          <div className="grid max-h-[90vh] w-full max-w-3xl gap-4 overflow-auto rounded-xl bg-white p-5 sm:grid-cols-2" onClick={(e) => e.stopPropagation()}>
+          <div className="grid max-h-[90vh] w-full max-w-3xl gap-4 overflow-auto rounded-xl bg-white p-5 dark:bg-slate-900 sm:grid-cols-2" onClick={(e) => e.stopPropagation()}>
             {/* Menu */}
             <div>
-              <h3 className="font-semibold text-slate-900">{activeTable.name} — tambah pesanan</h3>
+              <h3 className="font-semibold text-slate-900 dark:text-white">{t("meja.panel.addOrder").replace("{n}", activeTable.name)}</h3>
               <input value={query} onChange={(e) => setQuery(e.target.value)}
-                className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Cari menu..." />
+                className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" placeholder={t("meja.search.placeholder")} />
               <div className="mt-3 grid max-h-72 grid-cols-2 gap-2 overflow-auto">
                 {filtered.map((p) => (
                   <button key={p.id} onClick={() => addItem(p)}
-                    className="rounded-lg border border-slate-200 p-3 text-left text-sm hover:border-brand-400">
-                    <p className="font-medium text-slate-800">{p.name}</p>
-                    <p className="text-xs text-brand-700">{rupiah(p.price)}</p>
+                    className="rounded-lg border border-slate-200 p-3 text-left text-sm hover:border-brand-400 dark:border-slate-700">
+                    <p className="font-medium text-slate-800 dark:text-slate-100">{p.name}</p>
+                    <p className="text-xs text-brand-700 dark:text-brand-100">{rupiah(p.price)}</p>
                   </button>
                 ))}
               </div>
@@ -198,31 +200,31 @@ export default function MejaPage() {
 
             {/* Pesanan meja */}
             <div>
-              <h3 className="font-semibold text-slate-900">Pesanan</h3>
+              <h3 className="font-semibold text-slate-900 dark:text-white">{t("meja.order.title")}</h3>
               {items.length === 0 ? (
-                <p className="mt-3 text-sm text-slate-400">Belum ada pesanan.</p>
+                <p className="mt-3 text-sm text-slate-400">{t("meja.order.empty")}</p>
               ) : (
                 <ul className="mt-3 space-y-2">
                   {items.map((it) => (
                     <li key={it.product_id} className="flex items-center gap-2 text-sm">
-                      <span className="min-w-0 flex-1 truncate">{it.name}</span>
-                      <button onClick={() => changeQty(it.product_id, -1)} className="h-6 w-6 rounded border border-slate-300">−</button>
-                      <span className="w-6 text-center">{it.qty}</span>
-                      <button onClick={() => changeQty(it.product_id, 1)} className="h-6 w-6 rounded border border-slate-300">+</button>
+                      <span className="min-w-0 flex-1 truncate dark:text-slate-100">{it.name}</span>
+                      <button onClick={() => changeQty(it.product_id, -1)} className="h-6 w-6 rounded border border-slate-300 dark:border-slate-700 dark:text-slate-100">−</button>
+                      <span className="w-6 text-center dark:text-slate-100">{it.qty}</span>
+                      <button onClick={() => changeQty(it.product_id, 1)} className="h-6 w-6 rounded border border-slate-300 dark:border-slate-700 dark:text-slate-100">+</button>
                     </li>
                   ))}
                 </ul>
               )}
-              <div className="mt-4 flex justify-between border-t border-slate-100 pt-3 font-bold">
-                <span>Subtotal</span><span>{rupiah(sessionTotal)}</span>
+              <div className="mt-4 flex justify-between border-t border-slate-100 pt-3 font-bold dark:border-slate-800 dark:text-slate-100">
+                <span>{t("meja.subtotal")}</span><span>{rupiah(sessionTotal)}</span>
               </div>
               <button onClick={payTable} disabled={items.length === 0 || saving}
                 className="mt-4 w-full rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50">
-                {saving ? "Memproses..." : "Bayar & tutup meja"}
+                {saving ? t("meja.processing") : t("meja.pay")}
               </button>
               <button onClick={() => setActiveTable(null)}
-                className="mt-2 w-full rounded-lg border border-slate-300 py-2 text-sm text-slate-600">
-                Tutup panel
+                className="mt-2 w-full rounded-lg border border-slate-300 py-2 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-300">
+                {t("meja.closePanel")}
               </button>
             </div>
           </div>

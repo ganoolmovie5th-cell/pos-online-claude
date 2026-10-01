@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { rupiah } from "@/lib/format";
+import { useApp } from "@/lib/i18n/provider";
 import type { Sale } from "@/lib/types";
 
 export default function AnalitikPage() {
+  const { t } = useApp();
   const supabase = createClient();
   const [sales, setSales] = useState<Pick<Sale, "total" | "created_at" | "status">[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,31 +63,33 @@ export default function AnalitikPage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <h1 className="text-2xl font-bold text-slate-900">Analitik</h1>
-      <p className="mt-1 text-sm text-slate-500">Perbandingan 7 hari terakhir vs 7 hari sebelumnya.</p>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t("analitik.title")}</h1>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t("analitik.subtitle")}</p>
 
       {loading ? (
-        <p className="mt-8 text-center text-slate-400">Memuat...</p>
+        <p className="mt-8 text-center text-slate-400">{t("analitik.loading")}</p>
       ) : (
         <>
           <div className="mt-6 grid gap-4 sm:grid-cols-3">
             <Card
-              label="Omzet 7 hari"
+              label={t("analitik.card.omzet")}
               value={rupiah(stats.curOmzet)}
               delta={stats.omzetDelta}
+              deltaSuffix={t("analitik.vsPrev")}
             />
             <Card
-              label="Transaksi 7 hari"
+              label={t("analitik.card.count")}
               value={String(stats.curCount)}
               delta={stats.countDelta}
+              deltaSuffix={t("analitik.vsPrev")}
             />
-            <Card label="Rata-rata / transaksi" value={rupiah(stats.aov)} delta={null} />
+            <Card label={t("analitik.card.avg")} value={rupiah(stats.aov)} delta={null} deltaSuffix={t("analitik.vsPrev")} />
           </div>
 
-          <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-            <h2 className="font-semibold text-slate-900">Jam ramai (omzet 7 hari)</h2>
+          <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
+            <h2 className="font-semibold text-slate-900 dark:text-white">{t("analitik.busyHours")}</h2>
             {stats.curOmzet === 0 ? (
-              <p className="mt-3 text-sm text-slate-400">Belum ada penjualan.</p>
+              <p className="mt-3 text-sm text-slate-400">{t("analitik.noSales")}</p>
             ) : (
               <div className="mt-4 flex items-end gap-1" style={{ height: 160 }}>
                 {stats.byHour.map((v, h) => (
@@ -107,14 +111,14 @@ export default function AnalitikPage() {
   );
 }
 
-function Card({ label, value, delta }: { label: string; value: string; delta: number | null }) {
+function Card({ label, value, delta, deltaSuffix }: { label: string; value: string; delta: number | null; deltaSuffix: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-extrabold text-slate-900">{value}</p>
+    <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
+      <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">{value}</p>
       {delta != null && (
         <p className={`mt-1 text-sm font-medium ${delta >= 0 ? "text-green-600" : "text-red-600"}`}>
-          {delta >= 0 ? "▲" : "▼"} {Math.abs(delta).toFixed(0)}% vs periode lalu
+          {delta >= 0 ? "▲" : "▼"} {Math.abs(delta).toFixed(0)}{deltaSuffix}
         </p>
       )}
     </div>
