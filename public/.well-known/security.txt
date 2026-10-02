@@ -1,0 +1,5 @@
+# Security contact for www.posku-online.web.id
+Contact: mailto:ganoolmovie5th@gmail.com
+Expires: 2027-10-02T00:00:00.000Z
+Preferred-Languages: id, en
+Canonical: https://www.posku-online.web.id/.well-known/security.txt
