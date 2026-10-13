@@ -18,9 +18,11 @@ document.documentElement.lang=loc;
 }catch(e){}})();`;
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.posku-online.web.id"),
   title: "POS Online — Kasir untuk semua jenis usaha",
   description:
     "Aplikasi kasir online multi-industri: kelola produk, catat penjualan, dan pantau omzet dari mana saja.",
+  alternates: { canonical: "/" },
   verification: {
     google: "hdL2f8z85ebnV1bwE8mCn8Oqn_02D9t-y0MsTzS_014",
   },
@@ -35,6 +37,18 @@ export default function RootLayout({
     <html lang="id" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: initScript }} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "POS Online",
+              url: "https://www.posku-online.web.id",
+              logo: "https://www.posku-online.web.id/logo-512.png",
+            }),
+          }}
+        />
       </head>
       <GoogleTagManager gtmId="GTM-NK4MLR6T" />
       <body>
