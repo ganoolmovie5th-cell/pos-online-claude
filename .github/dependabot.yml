@@ -4,6 +4,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Security-updates only. No automatic version-bump PRs.
+    open-pull-requests-limit: 0
     ignore:
       # No patched release exists (transitive, build-time only).
       # braces: GHSA-vfj7-8cjw-p6xm (first_patched_version null)
