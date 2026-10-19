@@ -11,7 +11,7 @@
   "dependencies": {
     "@next/third-parties": "^16.3.6",
     "@supabase/ssr": "^0.5.2",
-    "@supabase/supabase-js": "^2.50.0",
+    "@supabase/supabase-js": "^2.118.0",
     "@types/jsbarcode": "^3.11.4",
     "@vercel/analytics": "^2.0.1",
     "html5-qrcode": "^2.3.8",
