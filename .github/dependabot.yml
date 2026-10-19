@@ -1,0 +1,10 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    ignore:
+      # No patched release exists (transitive, build-time only).
+      # braces: GHSA-vfj7-8cjw-p6xm (first_patched_version null)
+      - dependency-name: "braces"
